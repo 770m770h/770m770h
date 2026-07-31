@@ -6,217 +6,260 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import { SANS, SERIF, useHebrewFonts } from './fonts';
+import { BrandMark, ICONS, IconKey } from './icons';
 
 /**
- * A self-contained, programmatic feature-announcement video.
- *
- * Everything is data-driven via props — edit the text/colors below (or the
- * Composition defaultProps in Root.tsx) and the whole video re-renders. No
- * timeline, no editor, no video team: it's just React + math over `frame`.
+ * פרסומת פרימיום (RTL, עברית) למותג בתחום יחסי אנוש.
+ * הכול data-driven: הטקסט/הצבעים כאן — ובמידה ומשנים אותם, כל הסרטון מתעדכן.
  */
 
 export type FeatureDemoProps = {
-  kicker: string;
-  title: string;
+  brand: string;
+  eyebrow: string;
+  titleLine1: string;
+  titleLine2: string;
   subtitle: string;
-  features: { icon: string; label: string }[];
-  accent: string;
-  background: string;
+  features: { icon: IconKey; label: string; note: string }[];
+  cta: string;
 };
 
 export const featureDemoDefaultProps: FeatureDemoProps = {
-  kicker: 'NEW',
-  title: 'Ship videos from code',
-  subtitle: 'Programmatic video with React — parametric, versioned, automated.',
+  brand: 'אנשים',
+  eyebrow: 'פלטפורמת יחסי אנוש',
+  titleLine1: 'לנהל אנשים,',
+  titleLine2: 'אנושי יותר.',
+  subtitle: 'גיוס, קליטה, שכר ורווחה — פלטפורמה אחת לכל מסע העובד.',
   features: [
-    { icon: '⚛️', label: 'React components' },
-    { icon: '🎛️', label: 'Data-driven props' },
-    { icon: '🚀', label: 'Render in CI' },
+    { icon: 'people', label: 'גיוס וקליטה', note: 'מהמועמד ליום הראשון' },
+    { icon: 'calendar', label: 'שכר ונוכחות', note: 'מדויק, בזמן, אוטומטי' },
+    { icon: 'heart', label: 'רווחת העובד', note: 'הקשבה לאורך הדרך' },
   ],
-  accent: '#7c5cff',
-  background: '#0b0d17',
+  cta: 'people.co.il',
 };
 
-const FONT =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+// פלטה חמה ואנושית — נייר, דיו, ירוק-אורן, וניצוץ טרקוטה. בלי סגול, בלי זוהר.
+const PALETTE = {
+  paper: '#ECE4D3',
+  paperDeep: '#E4DAC5',
+  ink: '#211B13',
+  muted: '#6A6152',
+  green: '#1E5A44',
+  clay: '#B9552F',
+  line: 'rgba(33,27,19,0.14)',
+  card: 'rgba(33,27,19,0.035)',
+};
+
+const enter = (frame: number, fps: number, delay: number) =>
+  spring({ frame: frame - delay, fps, config: { damping: 200, mass: 0.7 } });
 
 export const FeatureDemo: React.FC<FeatureDemoProps> = ({
-  kicker,
-  title,
+  brand,
+  eyebrow,
+  titleLine1,
+  titleLine2,
   subtitle,
   features,
-  accent,
-  background,
+  cta,
 }) => {
+  useHebrewFonts();
   const frame = useCurrentFrame();
-  const { fps, width, height, durationInFrames } = useVideoConfig();
+  const { fps, durationInFrames } = useVideoConfig();
 
-  // Two slow-moving glow blobs give the background subtle motion.
-  const drift = (phase: number, amp: number) =>
-    Math.sin((frame / fps) * 0.9 + phase) * amp;
+  const eyebrowIn = enter(frame, fps, 6);
+  const line1In = enter(frame, fps, 16);
+  const line2In = enter(frame, fps, 26);
+  const subIn = enter(frame, fps, 40);
+  const brandIn = enter(frame, fps, 8);
+  const footIn = enter(frame, fps, 96);
 
-  const kickerIn = spring({ frame: frame - 6, fps, config: { damping: 200 } });
-  const titleIn = spring({ frame: frame - 16, fps, config: { damping: 200 } });
-  const subtitleIn = spring({ frame: frame - 30, fps, config: { damping: 200 } });
-
-  // Underline sweep beneath the title.
-  const underline = interpolate(frame, [36, 60], [0, 1], {
+  const rule = interpolate(frame, [44, 70], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-
-  // Gentle fade-out on the last 15 frames so loops/exports end cleanly.
   const outro = interpolate(
     frame,
-    [durationInFrames - 15, durationInFrames],
+    [durationInFrames - 14, durationInFrames],
     [1, 0],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
   );
 
-  return (
-    <AbsoluteFill style={{ backgroundColor: background, fontFamily: FONT, opacity: outro }}>
-      {/* Ambient gradient glows */}
-      <AbsoluteFill>
-        <div
-          style={{
-            position: 'absolute',
-            width: 900,
-            height: 900,
-            left: width * 0.62 + drift(0, 40),
-            top: height * 0.1 + drift(1.5, 30),
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${accent}55, transparent 60%)`,
-            filter: 'blur(20px)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            width: 780,
-            height: 780,
-            left: -240 + drift(3, 36),
-            top: height * 0.45 + drift(2, 28),
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, #12b8a955, transparent 60%)',
-            filter: 'blur(20px)',
-          }}
-        />
-      </AbsoluteFill>
+  const rise = (p: number, px: number) => `translateY(${(1 - p) * px}px)`;
 
-      {/* Content */}
+  return (
+    <AbsoluteFill
+      style={{
+        backgroundColor: PALETTE.paper,
+        direction: 'rtl',
+        opacity: outro,
+        fontFamily: SANS,
+      }}
+    >
+      {/* וינייטה חמה עדינה — עומק בלי זוהר ניאון */}
       <AbsoluteFill
         style={{
-          justifyContent: 'center',
-          paddingLeft: 110,
-          paddingRight: 110,
+          background: `radial-gradient(120% 90% at 82% 12%, ${PALETTE.paperDeep} 0%, ${PALETTE.paper} 55%)`,
+        }}
+      />
+      {/* קו-מסגרת דק, נשימה של פרינט */}
+      <AbsoluteFill style={{ padding: 40 }}>
+        <div style={{ width: '100%', height: '100%', border: `1px solid ${PALETTE.line}`, borderRadius: 6 }} />
+      </AbsoluteFill>
+
+      {/* מותג — פינה עליונה */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 74,
+          right: 96,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          opacity: brandIn,
+          transform: rise(brandIn, 12),
         }}
       >
-        {/* Kicker pill */}
+        <BrandMark size={38} primary={PALETTE.green} spark={PALETTE.clay} />
+        <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 34, color: PALETTE.ink, letterSpacing: 1 }}>
+          {brand}
+        </span>
+      </div>
+
+      {/* גוף המודעה */}
+      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'flex-start', padding: '0 96px' }}>
+        {/* Eyebrow */}
         <div
           style={{
-            transform: `translateY(${(1 - kickerIn) * 20}px)`,
-            opacity: kickerIn,
-            alignSelf: 'flex-start',
+            opacity: eyebrowIn,
+            transform: rise(eyebrowIn, 16),
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
-            padding: '10px 18px',
-            borderRadius: 999,
-            border: `1px solid ${accent}`,
-            background: `${accent}22`,
-            color: accent,
-            fontSize: 22,
+            gap: 12,
+            color: PALETTE.green,
+            fontSize: 26,
             fontWeight: 700,
-            letterSpacing: 3,
+            letterSpacing: 2,
           }}
         >
-          <span
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: accent,
-              boxShadow: `0 0 16px ${accent}`,
-            }}
-          />
-          {kicker}
+          <span style={{ width: 30, height: 2, background: PALETTE.clay, display: 'inline-block' }} />
+          {eyebrow}
         </div>
 
-        {/* Title */}
+        {/* כותרת ראשית — סריף תצוגה */}
         <h1
           style={{
+            fontFamily: SERIF,
             margin: '26px 0 0',
-            fontSize: 92,
-            lineHeight: 1.02,
-            fontWeight: 800,
-            color: '#ffffff',
-            maxWidth: 980,
-            transform: `translateY(${(1 - titleIn) * 40}px)`,
-            opacity: titleIn,
+            fontWeight: 900,
+            fontSize: 132,
+            lineHeight: 1.04,
+            color: PALETTE.ink,
+            textAlign: 'right',
           }}
         >
-          {title}
+          <span style={{ display: 'block', opacity: line1In, transform: rise(line1In, 44) }}>
+            {titleLine1}
+          </span>
+          <span style={{ display: 'block', color: PALETTE.green, opacity: line2In, transform: rise(line2In, 44) }}>
+            {titleLine2}
+          </span>
         </h1>
 
-        {/* Animated underline */}
+        {/* קו-הדגשה שנפרש מימין */}
         <div
           style={{
-            marginTop: 18,
-            height: 8,
-            width: 420 * underline,
+            marginTop: 24,
+            height: 5,
+            width: 360 * rule,
+            background: PALETTE.clay,
             borderRadius: 999,
-            background: `linear-gradient(90deg, ${accent}, #12b8a9)`,
           }}
         />
 
-        {/* Subtitle */}
+        {/* תת-כותרת */}
         <p
           style={{
-            margin: '28px 0 0',
-            fontSize: 34,
-            lineHeight: 1.35,
-            color: '#c7cbe0',
-            maxWidth: 820,
-            transform: `translateY(${(1 - subtitleIn) * 24}px)`,
-            opacity: subtitleIn,
+            margin: '30px 0 0',
+            fontSize: 38,
+            lineHeight: 1.45,
+            color: PALETTE.muted,
+            maxWidth: 1040,
+            textAlign: 'right',
+            fontWeight: 400,
+            opacity: subIn,
+            transform: rise(subIn, 22),
           }}
         >
           {subtitle}
         </p>
 
-        {/* Feature cards, staggered in */}
-        <div style={{ display: 'flex', gap: 22, marginTop: 52 }}>
+        {/* כרטיסי יכולת */}
+        <div style={{ display: 'flex', gap: 22, marginTop: 58 }}>
           {features.map((f, i) => {
-            const cardIn = spring({
-              frame: frame - (66 + i * 12),
-              fps,
-              config: { damping: 200 },
-            });
+            const c = enter(frame, fps, 64 + i * 11);
+            const Icon = ICONS[f.icon];
             return (
               <div
                 key={f.label}
                 style={{
-                  transform: `translateY(${(1 - cardIn) * 40}px)`,
-                  opacity: cardIn,
+                  opacity: c,
+                  transform: rise(c, 34),
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 14,
-                  padding: '20px 26px',
-                  borderRadius: 18,
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  backdropFilter: 'blur(6px)',
+                  gap: 18,
+                  padding: '22px 28px',
+                  borderRadius: 16,
+                  background: PALETTE.card,
+                  border: `1px solid ${PALETTE.line}`,
                 }}
               >
-                <span style={{ fontSize: 34 }}>{f.icon}</span>
-                <span style={{ fontSize: 26, fontWeight: 600, color: '#eef0fb' }}>
-                  {f.label}
+                <span
+                  style={{
+                    display: 'flex',
+                    width: 56,
+                    height: 56,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(30,90,68,0.10)',
+                  }}
+                >
+                  <Icon size={30} color={PALETTE.green} />
+                </span>
+                <span style={{ textAlign: 'right' }}>
+                  <span style={{ display: 'block', fontSize: 27, fontWeight: 700, color: PALETTE.ink }}>
+                    {f.label}
+                  </span>
+                  <span style={{ display: 'block', fontSize: 20, color: PALETTE.muted, marginTop: 2 }}>
+                    {f.note}
+                  </span>
                 </span>
               </div>
             );
           })}
         </div>
       </AbsoluteFill>
+
+      {/* פוטר — נעילת מותג */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 74,
+          left: 96,
+          right: 96,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          opacity: footIn,
+          transform: rise(footIn, 10),
+        }}
+      >
+        <span style={{ fontSize: 24, color: PALETTE.muted, letterSpacing: 1 }}>{cta}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 26, color: PALETTE.ink }}>{brand}</span>
+          <span style={{ fontSize: 22, color: PALETTE.green, fontWeight: 700 }}>· יחסי אנוש, אנושיים יותר</span>
+        </span>
+      </div>
     </AbsoluteFill>
   );
 };

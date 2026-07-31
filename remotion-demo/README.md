@@ -1,58 +1,65 @@
-# Remotion feature demo
+# פרסומת "אנשים" — Remotion (וידאו תכנותי ב-React)
 
-A programmatic **feature-announcement video** built with
-[Remotion](https://www.remotion.dev/) — video authored as React, so there's no
-timeline and no video team. Everything is `props` + math over the current frame.
+פרסומת פרימיום למותג בתחום **יחסי אנוש**, שנבנתה כולה כקוד React עם
+[Remotion](https://www.remotion.dev/) — בלי טיימליין ובלי צוות וידאו.
+הכול נגזר מ-`props`: טקסט, צבעים ותנועה מחושבים לפי הפריים הנוכחי.
 
 ![poster](out/poster.png)
 
-## What it shows
+## שפת עיצוב
 
-- A 6-second (180-frame @ 30fps, 1280×720) animated announcement.
-- `spring()` entrance animations for the kicker pill, title, subtitle, and
-  staggered feature cards.
-- `interpolate()` for the underline sweep and clean fade-out.
-- Ambient gradient glows that drift with `Math.sin(frame)`.
-- Fully **data-driven**: change the text/colors in one place and re-render.
+- **עברית מלאה, RTL.** בלי סגול ובלי זוהר-AI גנרי.
+- פלטה חמה ואנושית: נייר (`#ECE4D3`), דיו (`#211B13`), ירוק-אורן (`#1E5A44`) וניצוץ טרקוטה (`#B9552F`).
+- טיפוגרפיה עברית אמיתית: **Frank Ruhl Libre** (סריף תצוגה) ל-כותרות, **Assistant** (סן-סריף) לגוף.
+- אייקוני-קו מצוירים (SVG) במקום אמוג'י.
+- תנועה מאופקת: `spring()` לכניסות, `interpolate()` לקו-ההדגשה ולפייד.
 
-## Files
+1920×1080, ‏180 פריימים @ 30fps (6 שניות).
 
-| File | Purpose |
-|------|---------|
-| `src/index.ts` | `registerRoot` entry point |
-| `src/Root.tsx` | Declares the `FeatureDemo` `<Composition>` (size, fps, duration) |
-| `src/FeatureDemo.tsx` | The video component + its `props`/defaults |
-| `remotion.config.ts` | Render config |
+## הטמעת גופנים
 
-## Customize
+לדפדפן ה-headless אין גופן עברי, לכן הגופנים **מוטמעים מקומית** (`public/fonts/*.woff2`,
+מתוך חבילות `@fontsource`) ונטענים דרך `@font-face` + `delayRender`, כך שהרינדור
+לא תלוי בגופני מערכת או ברשת. ראו `src/fonts.ts`.
 
-Edit `featureDemoDefaultProps` in `src/FeatureDemo.tsx` (title, subtitle,
-`features`, `accent`, `background`) — the whole video re-renders from the new
-data. No re-editing, no re-shooting.
+## קבצים
 
-## Develop
+| קובץ | תפקיד |
+|------|-------|
+| `src/index.ts` | נקודת כניסה (`registerRoot`) |
+| `src/Root.tsx` | הגדרת ה-`<Composition>` (גודל, fps, משך) |
+| `src/FeatureDemo.tsx` | קומפוננטת הפרסומת + ה-`props`/ברירות המחדל |
+| `src/fonts.ts` | הטמעת גופנים עבריים + חסימת רינדור עד לטעינתם |
+| `src/icons.tsx` | אייקוני-קו + סמל המותג |
+
+## התאמה אישית
+
+עורכים את `featureDemoDefaultProps` ב-`src/FeatureDemo.tsx` (מותג, כותרת,
+תת-כותרת, `features`, cta) — וכל הסרטון מתרנדר מחדש מהנתונים. בלי עריכה חוזרת,
+בלי צילום מחדש.
+
+## פיתוח
 
 ```bash
 npm install
-npm run studio      # interactive preview at http://localhost:3000
+npm run studio      # תצוגה אינטראקטיבית ב-http://localhost:3000
 ```
 
-## Render
+## רינדור
 
-Remotion renders with headless Chrome. In this environment a
-`chrome-headless-shell` binary is pre-installed, so pass it explicitly:
+Remotion מרנדר עם Chrome headless. בסביבה הזו קיים `chrome-headless-shell`
+מותקן מראש, לכן מעבירים אותו במפורש:
 
 ```bash
 HS=/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell
 
-npm run render  -- --browser-executable="$HS"   # → out/feature-demo.mp4
-npm run still   -- --browser-executable="$HS"    # → out/poster.png (frame 70)
+npm run render -- --browser-executable="$HS"   # → out/feature-demo.mp4
+npm run still  -- --browser-executable="$HS"    # → out/poster.png
 ```
 
-On a normal machine, drop `--browser-executable` and Remotion downloads its own
-Chrome Headless Shell automatically.
+במחשב רגיל משמיטים את `--browser-executable` ו-Remotion מוריד Chrome בעצמו.
 
-## Render in CI
+## רינדור ב-CI
 
-Because the video is just code, `npm run render` runs anywhere — commit the
-source, render the MP4 in a pipeline, and ship it as a build artifact.
+מכיוון שהסרטון הוא קוד, `npm run render` רץ בכל מקום — commit למקור,
+רינדור ה-MP4 ב-pipeline, ושחרור כ-build artifact.
