@@ -5,14 +5,17 @@
   "description": "Programmatic feature-announcement video built with Remotion (React)",
   "scripts": {
     "studio": "remotion studio",
-    "render": "remotion render FeatureDemo out/feature-demo.mp4",
-    "still": "remotion still FeatureDemo out/poster.png --frame=70",
+    "render": "remotion render Film out/anashim-film.mp4",
+    "still": "remotion still Film out/poster.png --frame=430",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/assistant": "^5.3.0",
     "@fontsource/frank-ruhl-libre": "^5.3.0",
     "@remotion/cli": "4.0.503",
+    "@remotion/noise": "^4.0.503",
+    "@remotion/shapes": "^4.0.503",
+    "@remotion/transitions": "^4.0.503",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "remotion": "4.0.503"
