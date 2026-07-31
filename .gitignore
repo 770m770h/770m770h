@@ -1,21 +1,16 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.eggs/
-build/
-dist/
+# Dependencies
+node_modules/
 
-# Virtual environments
-.venv/
-venv/
-env/
+# Build output
+dist/
+*.tsbuildinfo
 
 # Environment variables / secrets
 .env
 .env.*
 
-# browser-use runtime / logs
-*.log
-.browser_use/
-tmp/
+# Generated skill outputs
+*.xlsx
+*.docx
+*.pptx
+*.pdf
