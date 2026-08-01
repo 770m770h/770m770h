@@ -34,9 +34,22 @@ export const SCENE_FRAMES = {
 
 export const TRANSITION_FRAMES = 18;
 
-/** משך הסרט = סכום הסצנות פחות חפיפות המעברים. */
+/** אורכי המעברים בפועל — לא כולם זהים, ולכן חייבים להיסכם בנפרד. */
+export const TRANSITIONS = {
+  arrivalToOverload: TRANSITION_FRAMES,
+  overloadToPlatform: 22,
+  platformToHuman: 20,
+  humanToLockup: TRANSITION_FRAMES,
+} as const;
+
+/**
+ * משך הסרט = סכום הסצנות פחות חפיפות המעברים.
+ * חשוב: לסכום את המעברים בפועל ולא להכפיל אחד מהם — אחרת נוצרת זנב
+ * של פריימים ריקים אחרי שהסצנה האחרונה נגמרה.
+ */
 export const FILM_DURATION =
-  Object.values(SCENE_FRAMES).reduce((a, b) => a + b, 0) - 4 * TRANSITION_FRAMES;
+  Object.values(SCENE_FRAMES).reduce((a, b) => a + b, 0) -
+  Object.values(TRANSITIONS).reduce((a, b) => a + b, 0);
 
 export const Film: React.FC = () => {
   useHebrewFonts();
@@ -61,7 +74,7 @@ export const Film: React.FC = () => {
         {/* העומס → הפלטפורמה: ניגוב — נקודת המפנה של הסרט */}
         <TransitionSeries.Transition
           presentation={wipe({ direction: 'from-right' })}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 22 })}
+          timing={springTiming({ config: { damping: 200 }, durationInFrames: TRANSITIONS.overloadToPlatform })}
         />
 
         <TransitionSeries.Sequence durationInFrames={SCENE_FRAMES.platform}>
@@ -71,7 +84,7 @@ export const Film: React.FC = () => {
         {/* הפלטפורמה → אנשים: הסטה, מהמערכת אל בני האדם */}
         <TransitionSeries.Transition
           presentation={slide({ direction: 'from-left' })}
-          timing={springTiming({ config: { damping: 200 }, durationInFrames: 20 })}
+          timing={springTiming({ config: { damping: 200 }, durationInFrames: TRANSITIONS.platformToHuman })}
         />
 
         <TransitionSeries.Sequence durationInFrames={SCENE_FRAMES.human}>

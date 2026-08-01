@@ -266,8 +266,10 @@ export const SceneArrival: React.FC = () => {
   // הכתובית עולה מוקדם יותר כדי שתישאר קריאה במלואה כשנייה וחצי
   // לפני שהדיזולב לסצנה הבאה מתחיל (פריים 87).
   const capIn = rise(frame, fps, 30, 140);
-  const capOp = ramp(frame, [30, 50], [0, 1]);
-  const scrimOp = ramp(frame, [24, 46], [0, 1]);
+  // עולה מוקדם, ונכבית לפני פריים 87 — שם מתחיל הדיזולב לסצנה הבאה.
+  // כתובית שנשארת דולקת לתוך המעבר "בוערת" מעל הסצנה הבאה.
+  const capOp = ramp(frame, [30, 50], [0, 1]) * ramp(frame, [76, 86], [1, 0]);
+  const scrimOp = ramp(frame, [24, 46], [0, 1]) * ramp(frame, [76, 86], [1, 0]);
   const barIn = rise(frame, fps, 36, 120);
 
   /* חלונות שנדלקים — רשת Building של הבניין הראשי: x=250, base=868, h=568 */
