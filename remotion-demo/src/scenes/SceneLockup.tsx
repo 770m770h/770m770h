@@ -1,5 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { KineticLine } from '../type';
 import { C, SANS, SERIF, pop, ramp } from '../theme';
 import { Person } from '../rig';
 import type { Look } from '../rig';

@@ -1,5 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
+import { KineticLine } from '../type';
 import { C, SANS, SERIF, pop, ramp, rise } from '../theme';
 import { LOOKS, Person } from '../rig';
 import { CheckBadge, PaperSheet, UICard } from '../props';
@@ -816,36 +817,29 @@ export const ScenePlatform: React.FC = () => {
             }}
           />
         </div>
-        <div style={{ overflow: 'hidden', paddingBottom: 8 }}>
-          <div
-            style={{
-              fontFamily: SERIF,
-              fontWeight: 900,
-              fontSize: 90,
-              lineHeight: 1.14,
-              color: C.ink,
-              letterSpacing: '-0.012em',
-              transform: `translateY(${(1 - rL1) * 116}%)`,
-            }}
-          >
-            פלטפורמה אחת.
-          </div>
-        </div>
-        <div style={{ overflow: 'hidden', paddingBottom: 12, marginTop: -6 }}>
-          <div
-            style={{
-              fontFamily: SERIF,
-              fontWeight: 900,
-              fontSize: 90,
-              lineHeight: 1.14,
-              color: C.green,
-              letterSpacing: '-0.012em',
-              transform: `translateY(${(1 - rL2) * 116}%)`,
-            }}
-          >
-            כל מסע העובד.
-          </div>
-        </div>
+        {/* הכותרת נבנית מילה-מילה בקצב שבו הכרטיסים נוחתים על הלוח —
+            הטקסט לא "מופיע", הוא מורכב יחד עם המערכת שמאחוריו. */}
+        <KineticLine
+          text="פלטפורמה אחת."
+          delay={2}
+          stagger={5}
+          fontSize={90}
+          weight={900}
+          color={C.ink}
+          lineHeight={1.14}
+          style={{ letterSpacing: '-0.012em', whiteSpace: 'nowrap' }}
+        />
+        <KineticLine
+          text="כל מסע העובד."
+          delay={14}
+          stagger={5}
+          fontSize={90}
+          weight={900}
+          color={C.green}
+          lineHeight={1.14}
+          style={{ letterSpacing: '-0.012em', marginTop: -6, whiteSpace: 'nowrap' }}
+        />
+        <span style={{ display: 'none' }}>{rL1 + rL2}</span>
         <div
           style={{
             marginTop: 30,

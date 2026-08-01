@@ -1,5 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
+import { KineticLine, KineticRule } from '../type';
 import { C, SERIF, camera, ramp, rise } from '../theme';
 import { LOOKS, Person } from '../rig';
 import { Building, Plant } from '../props';
@@ -683,7 +684,9 @@ export const SceneArrival: React.FC = () => {
         }}
       />
 
-      {/* ====== לואר-ת'רד ====== */}
+      {/* ====== כותרת פתיחה ======
+          לא סרגל כתובית בתחתית — הטקסט יושב בשמיים בפינה הימנית-עליונה,
+          בדיו כהה על התכלת הבהיר. קומפוזיציה עריכתית במקום כתובית תרגום. */}
       <AbsoluteFill style={{ pointerEvents: 'none' }}>
         <div
           style={{
@@ -691,48 +694,62 @@ export const SceneArrival: React.FC = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            height: 246,
-            opacity: scrimOp,
-            background:
-              'linear-gradient(to top, rgba(24,18,12,0.66) 0%, rgba(24,18,12,0.42) 46%, rgba(24,18,12,0) 100%)',
+            height: 0,
+            opacity: 0,
+            background: 'none',
           }}
         />
+        {/* כתובית: נחשפת מילה-מילה מתחת למסכה, בשני פעימות.
+            "כל בוקר," נוחת ראשון ועוצר; ההמשך נבנה אחריו. */}
         <div
           style={{
             position: 'absolute',
-            right: 122,
-            bottom: 68,
+            right: 132,
+            top: 128,
             display: 'flex',
-            direction: 'rtl',
-            alignItems: 'center',
-            gap: 24,
-            opacity: capOp,
-            transform: `translateY(${(1 - capIn) * 20}px)`,
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: 4,
           }}
         >
-          <div
-            style={{
-              width: 5,
-              height: 50 * barIn,
-              backgroundColor: C.clayLight,
-              borderRadius: 3,
-              flexShrink: 0,
-            }}
+          <KineticRule
+            delay={24}
+            out={78}
+            width={72}
+            height={4}
+            color={C.clay}
+            style={{ marginBottom: 18 }}
           />
-          <div
-            style={{
-              direction: 'rtl',
-              fontFamily: SERIF,
-              fontWeight: 500,
-              fontSize: 52,
-              lineHeight: 1.2,
-              color: C.paperWarm,
-              whiteSpace: 'nowrap',
-              letterSpacing: '-0.005em',
-            }}
-          >
-            כל בוקר, מיליוני אנשים מתחילים יום חדש.
-          </div>
+          <KineticLine
+            text="כל בוקר,"
+            delay={30}
+            stagger={4}
+            out={[76, 86]}
+            fontSize={58}
+            weight={500}
+            color={C.inkSoft}
+            energy="calm"
+          />
+          <KineticLine
+            text="מיליוני אנשים"
+            delay={44}
+            stagger={3}
+            out={[76, 86]}
+            fontSize={58}
+            weight={500}
+            color={C.inkSoft}
+            energy="calm"
+          />
+          <KineticLine
+            text="מתחילים יום חדש."
+            delay={54}
+            stagger={3}
+            out={[76, 86]}
+            fontSize={58}
+            weight={500}
+            color={C.inkSoft}
+            energy="calm"
+          />
         </div>
       </AbsoluteFill>
     </AbsoluteFill>

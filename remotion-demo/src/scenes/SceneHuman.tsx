@@ -1,5 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { KineticLine, HeroWord } from '../type';
 import { C, SANS, SERIF, camera, ramp, rise } from '../theme';
 import { LOOKS, Person } from '../rig';
 import type { Look, Pose } from '../rig';

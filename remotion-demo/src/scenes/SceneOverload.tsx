@@ -1,5 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from 'remotion';
+import { KineticLine } from '../type';
 import { C, SERIF, SANS, ramp, pop } from '../theme';
 import { LOOKS, Person } from '../rig';
 import { Chair, CoffeeCup, Desk, Monitor, PaperSheet, Plant } from '../props';
@@ -855,34 +856,28 @@ export const SceneOverload: React.FC = () => {
           <div style={{ height: 3, width: 62, backgroundColor: C.clay, opacity: 0.55, borderRadius: 2 }} />
         </div>
 
-        <div
-          style={{
-            fontFamily: SERIF,
-            fontWeight: 700,
-            fontSize: 94,
-            lineHeight: 1.1,
-            color: C.ink,
-            textShadow: '0 0 30px rgba(243,237,224,0.95), 0 1px 3px rgba(243,237,224,0.9)',
-          }}
-        >
-          <div
-            style={{
-              clipPath: `inset(-16% 0% -16% ${(1 - l1) * 100}%)`,
-              opacity: l1,
-              transform: `translate(${tJit(0)}px, ${ramp(f, [30, 46], [20, 0]) + tJit(1.7) * 0.5}px)`,
-            }}
-          >
-            אבל הניהול נשאר
-          </div>
-          <div
-            style={{
-              clipPath: `inset(-16% 0% -16% ${(1 - l2) * 100}%)`,
-              opacity: l2,
-              transform: `translate(${tJit(2.4)}px, ${ramp(f, [39, 55], [22, 0]) + tJit(4.1) * 0.5}px)`,
-            }}
-          >
-            תקוע <span style={{ color: C.clay }}>בניירת</span>.
-          </div>
+        {/* הטקסט נבנה מילה-מילה באנרגיה דחוסה — נחיתה מהירה עם overshoot קל,
+            והרעד של המצלמה עובר גם אליו. מילת המפתח נוחתת בטרקוטה. */}
+        <div style={{ transform: `translate(${tJit(0)}px, ${tJit(1.7) * 0.5}px)` }}>
+          <KineticLine
+            text="אבל הניהול נשאר"
+            delay={30}
+            stagger={3}
+            fontSize={94}
+            weight={700}
+            color={C.ink}
+            energy="urgent"
+          />
+          <KineticLine
+            text="תקוע *בניירת*."
+            delay={41}
+            stagger={3}
+            fontSize={94}
+            weight={700}
+            color={C.ink}
+            accentColor={C.clay}
+            energy="urgent"
+          />
         </div>
 
         <div
