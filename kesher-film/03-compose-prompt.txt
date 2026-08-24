@@ -1,0 +1,179 @@
+Create a 60-second cinematic ANIMATED SHORT FILM in Hebrew, titled "קֶשֶׁר".
+
+=== CRITICAL FORMAT RULES — read these before anything else ===
+- This is a motion-graphics short film. It is NOT a slide deck, NOT a presentation, NOT bullet
+  points, NOT an explainer with text panels, and NOT a talking-head video. Do NOT use a HeyGen
+  avatar, presenter or spokesperson. Do NOT use stock photos or stock video. Every frame is
+  hand-built vector animation: SVG paths, silhouettes, masks, glows, particles, camera moves.
+- Runtime EXACTLY 60.0 seconds. 17 shots at the exact durations listed below. Fast, dense,
+  continuously moving — but every shot must be readable. Nothing shorter than 3.0 seconds.
+- Language: HEBREW. All on-screen text is Hebrew, rendered RIGHT-TO-LEFT (dir="rtl" on the text
+  containers, a real Hebrew webfont — Heebo, Assistant or Rubik from Google Fonts). The Hebrew
+  must render as correct, correctly-ordered Hebrew script — never reversed, never tofu boxes,
+  never Latin fallback.
+- Voice-over: HEBREW, one male voice, warm, low, measured, unhurried, documentary tone. Not
+  salesy, not dramatic, no advertising inflection, no rising sell. Real pauses between sentences.
+- 16:9, 1920x1080.
+
+=== SUBJECT ===
+Addiction as a disease of CONNECTION. The Hebrew word קֶשֶׁר means both "a relationship" and
+"a knot / a tying". The whole film is built on ONE continuous luminous THREAD.
+
+=== THE LAW OF THE FILM — obey this above every other instruction ===
+THE THREAD IS NEVER CUT. Not once, in any shot. The disease does not sever relationships —
+it SWALLOWS them: every thread it takes is dragged in and absorbed into the one thick thread,
+which grows fatter on what it eats. By the end of act two everything he ever had is inside one
+snarl tied to one thing. That is why he cannot simply stop — and it is also why recovery is
+possible, because nothing was destroyed, only captured. In act three the snarl is untangled
+FROM THE FAR END, BY OTHER PEOPLE, and the swallowed threads come back out of it one at a time.
+If a shot description ever seems to call for cutting or snapping a thread, it does not: the
+thread greys, goes slack, sags, is dragged in, or is absorbed. Never severed.
+
+=== THE ONE IMAGE THAT CARRIES THE FILM ===
+In addiction, everyone's thread is tied to the CENTRE.
+In recovery, everyone's thread is tied TO EACH OTHER.
+Same circle, same number of people, same threads — only the position of the knots changes.
+Shots 5-6 and shot 14 are that comparison. FRAME THEM IDENTICALLY — same camera height, same
+ring diameter, same figure spacing — so the audience feels the rhyme without being told.
+
+=== VISUAL SYSTEM ===
+- Ground: near-black #0A0A0F with a faint cool vignette. It drifts imperceptibly colder and more
+  desaturated across shots 8-12, and warms back to a soft charcoal #14120E across shots 14-17.
+  Never cut the background; only drift it.
+- Living thread and all warmth: gold #F5B942. Dormant / greyed thread: #6B7280. The substance and
+  its false euphoria: violet #A78BFA with a pink bloom #F472B6, hard-edged, tightly bloomed, with
+  a 1px chromatic offset and a faint buzz — warm gold and cold violet must never share an easing
+  curve or an edge quality. Recovery gold is slightly warmer and less saturated: #E8A33D.
+  Text: off-white #F5F2EA.
+- Characters: flat 2D vector silhouettes — simple, elegant, rounded, NO faces, NO features, with
+  a single small warm dot at the chest for the person's own light. The protagonist is ONE
+  silhouette that grows through the film: small child → teenager → adult → an adult standing
+  straighter at the end. Keep him identifiable in every shot by his proportion and his thread.
+- The thread: an SVG stroke, 2-4px (up to 10px when engorged), animated with stroke-dasharray and
+  stroke-dashoffset, with a soft gaussian bloom, bezier sag and real tension. Easing: expo.out for
+  whips, sine.inOut for breathing, power2.inOut for camera.
+- Camera: constantly, motivatedly moving — riding along the thread, pushing in, whip-panning,
+  pulling back. Cuts land on the beat. EXACTLY ONE shot in the film (shot 12) is completely
+  motionless; that stillness is the emotional pivot and must be protected absolutely.
+- Typography: six text cards in the whole film, no more. Large, Hebrew, low weight, entering on a
+  soft mask reveal. Never more than four words.
+
+=== TONE RULES — non-negotiable ===
+- The disease is the antagonist. The person is never a villain, never a warning, never pathetic.
+- NO needles, NO syringes, NO pills, NO bottles, NO powder, NO smoke, NO gore, NO logos, NO real
+  people, NO brand marks. The substance appears ONLY as a small perfect warm glowing circle: the
+  most reliable relationship in the world, which is exactly what makes it fatal.
+- THE THREAD NEVER GOES ABOVE THE COLLARBONE. No loop, coil, or wrap near the neck or head, in any
+  shot, at any moment. The tightening in shot 8 is around the CHEST only. This is a hard rule.
+- Never glamorise use. Never moralise. Shot 5 must genuinely feel like relief and belonging —
+  that truth is exactly what makes shot 6 land.
+- Recovery is not willpower and not a cure. In shot 13 the offered hand does NOT pull. In shot 14
+  the group is seated AT HIS EYE HEIGHT, nobody standing over him, and they do not tie his knot
+  for him — they hold the end until he can tie it himself. In shot 15 every mended thread stays
+  visibly spliced and scarred where it was repaired.
+
+=== THE 17 SHOTS — build exactly these, in this order, at these exact durations ===
+
+1 · 0.0-3.5 · Black. A gold thread snaps taut across frame. The camera rides it at speed and it
+  lands in the chest of a small child silhouette. The far end is held in an adult hand.
+  VO: "אף אחד לא נולד מכור. נולדים עם חוט אחד."
+
+2 · 3.5-7.5 · The adult silhouette rotates three-quarters away — never fully leaving frame, which
+  is the cruelty of it. The fingers open. The gold drains out of the thread toward the adult, it
+  greys, it sags into a dead curve across the floor. NOT cut. Dropped.
+  VO: "וכשהיד שבצד השני מרפה — הילד לומד שאי אפשר לסמוך."
+
+3 · 7.5-10.5 · Push in. The child picks up the grey end and winds it around his own wrist, again
+  and again, into a tight self-made bracelet. He is regulating himself with the thing that was
+  supposed to be somebody else's job.
+  VO: "אז הוא מחזיק את הקצה לבד."   TEXT: לבד
+
+4 · 10.5-13.5 · Whip-pan. The same silhouette, now a teenager. Out of the dark, five other
+  teenagers fade up, each holding their own loose grey end.
+  VO: "ואז הוא מוצא אחרים שמחזיקים קצה חופשי."
+
+5 · 13.5-17.5 · The six step into a ring and tie their threads — NOT to each other — to a single
+  small object at the centre, which lights violet. The frame floods with warm violet. It looks
+  like friendship. It feels like the first relief in the film. Let it feel genuinely good.
+  VO: "וזה מרגיש כמו שייכות. סוף סוף מישהו מקבל אותך."   TEXT: סוף סוף שייכות
+
+6 · 17.5-20.5 · IDENTICAL framing. The six PEOPLE dissolve into loose strands and drift away.
+  Only the six threads and the glowing centre remain. The music drops out for half a second.
+  VO: "אבל הקשר אף פעם לא היה ביניהם."
+
+7 · 20.5-24.5 · Push into the centre: a small perfect warm circle, breathing on a slow cycle. The
+  five abandoned threads are drawn into it and absorbed; his thread thickens from 2px to 7px as it
+  feeds. Then the circle grows a HAND out of its own stroke and takes his hand — the exact gesture
+  from shot 1, finally answered, by the wrong thing.
+  VO: "כי הקשר היה עם זה. תמיד זמין. לעולם לא דוחה."
+
+8 · 24.5-28.0 · Side view, flat lateral travel: he walks holding the thread like a leash, the
+  glowing circle trotting ahead of him. Mid-shot, with NO cut, the geometry inverts — the slack
+  reverses and it is towing him. The thread then coils up his wrist, his forearm and around his
+  CHEST (never above the collarbone) and tightens a notch on every breath.
+  VO: "בהתחלה אתה מושך בחוט. אחר כך הוא מושך בך."
+
+9 · 28.0-32.0 · Whip pull-back to a wide constellation: him at centre, fourteen small figures
+  around him — a partner, parents, a child, colleagues, friends — each on a thin thread. From the
+  outside inward, those threads are DRAGGED IN and swallowed by the central thread, which visibly
+  thickens with each one it eats, while each figure's light dims. Nothing is cut.
+  VO: "המחלה לא חותכת את הקשרים. היא בולעת אותם."
+
+10 · 32.0-36.0 · The camera pushes THROUGH his chest into his head. A luminous neural web made of
+  the same thread. The web's branches are pulled inward and wound into ONE closed loop that fires
+  and re-fires on itself. The capacity is not gone. It is captured.
+  VO: "היכולת לקשור לא נעלמה. היא נחטפה."   TEXT: היכולת לקשור
+
+11 · 36.0-39.0 · He faces his own reflection. A thread runs between them. It is drawn in and
+  swallowed too. The reflection dims and rotates three-quarters away — using EXACTLY the same
+  turn-away animation, timing and easing as the adult in shot 2.
+  VO: "עד שגם הוא עצמו הופך לזר."
+
+12 · 39.0-42.5 · Rock bottom, told by scale. Extreme wide. Vast black. One tiny seated figure
+  inside a snarl of thread — and he is not holding it, it is holding him. THE CAMERA IS COMPLETELY
+  STILL. A low sub-bass tone and one breath. NO VOICE-OVER. NO TEXT. Silence.
+
+13 · 42.5-46.0 · From the edge of the black, a hand and forearm enter. Not the parent's; we never
+  learn whose. It picks up the far end of the snarl and simply holds it. It does not pull. Then a
+  second hand. Then a third.
+  VO: "יד אחת מרימה את הקצה השני. לא מושכת — מחזיקה."   TEXT: לא מושכת — מחזיקה
+
+14 · 46.0-50.0 · A ring of eight, framed IDENTICALLY to shot 5 — same camera height, same ring
+  diameter, same spacing — all seated at his eye height, nobody standing over him. Each ties their
+  thread TO EACH OTHER, with a visible knot at every join, and a small bright chime on each knot.
+  THERE IS NO CENTRE. They hold his end steady; HE ties his own knot.
+  VO: "ההחלמה לא מתחילה בכוח רצון. היא מתחילה בקצה השני."   TEXT: אין מרכז. יש קשרים.
+
+15 · 50.0-54.0 · One unbroken camera move. As the circle holds, the snarl loosens from the far end
+  and the swallowed threads come back OUT of it, one at a time, and re-tie outward: a sponsor, a
+  therapist's chair, a family table, a body running, a door opening onto daylight. Every one of
+  them stays visibly spliced and knotted where it was mended. Then the camera pushes back into his
+  head and the closed loop opens and branches back into a web — brighter than before, and scarred.
+  VO: "והקשרים שנבלעו — חוזרים. אחד־אחד. עם צלקת."
+
+16 · 54.0-57.0 · The mirror again. He picks up his own grey end — the one from shot 3, still
+  around his wrist — and ties it to his own chest. It turns gold. The reflection rotates BACK
+  toward him: shot 2 and shot 11 played in reverse, same easing.
+  VO: "והקשר האחרון, הקשה מכולם — עם עצמו."
+
+17 · 57.0-60.0 · Fast exponential pull-back: he is one knot in a vast luminous net of hundreds of
+  threads between hundreds of silhouettes. At the frame edge a small child holds a thread — and HE
+  holds the other end, and does not let go. The net contracts into a single knot on black, and the
+  title forms.
+  VO: "ההפך מהתמכרות הוא לא ניקיון — הוא קֶשֶׁר."
+  TEXT from 58.9: קֶשֶׁר — very large. Beneath it, small: חיבור · קשירה
+
+=== SOUND ===
+Sparse solo piano and low strings. One held note under shots 1-4. A warm synthetic pulse under
+shots 5-7 that curdles into a drone through 8-11. Near-silence and sub-bass at shot 12. From shot
+13 a slow warm build of strings that resolves but never becomes triumphant or anthemic — this
+film ends in relief, not in victory. Thread foley: a soft dry drag as each thread is swallowed,
+a small bright chime on each knot tied in shot 14.
+
+=== IF YOU MUST SIMPLIFY, PROTECT THESE FIVE THINGS ABOVE ALL ELSE ===
+1. Exactly 60.0 seconds.
+2. Correct right-to-left Hebrew rendering, on screen and in the voice-over.
+3. The identical framing between shot 5/6 (threads tied to the centre) and shot 14 (threads tied
+   to each other). That rhyme IS the film.
+4. Shot 12: total stillness, total silence, no text.
+5. The final title card: קֶשֶׁר, with חיבור · קשירה beneath it.
