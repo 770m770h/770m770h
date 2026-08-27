@@ -1,0 +1,308 @@
+<#
+.SYNOPSIS
+    Adds Hebrew/Arabic RTL rendering to Claude Desktop on Windows without
+    modifying a single file inside the installation.
+
+.DESCRIPTION
+    Starts Claude Desktop with Chromium's remote debugging port enabled and
+    injects the RTL payload over the DevTools Protocol.
+
+    Compared with patching app.asar this changes nothing on disk: the digital
+    signature stays intact, no certificate is installed, and a Claude update
+    does not undo anything. Stop using this launcher and the app is exactly as
+    it shipped.
+
+    The trade-off: while Claude runs this way it listens on a loopback
+    debugging port, and any program running as your user could attach to it.
+    The port is bound to 127.0.0.1 and closes when Claude exits.
+
+.PARAMETER Port
+    Debugging port. Default 9222.
+
+.PARAMETER Watch
+    Keep running and inject into windows opened later. Recommended.
+
+.PARAMETER Diagnose
+    Report what the script can see and exit. Use this first if injection fails.
+
+.PARAMETER CreateShortcut
+    Put a "Claude (RTL)" shortcut on the Desktop that runs this script.
+
+.EXAMPLE
+    .\claude-rtl.ps1 -Watch
+#>
+[CmdletBinding()]
+param(
+    [int]$Port = 9222,
+    [switch]$Watch,
+    [switch]$Diagnose,
+    [switch]$CreateShortcut,
+    [string]$PayloadPath
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version 2.0
+
+# --------------------------------------------------------------- discovery
+
+function Find-ClaudeExe {
+    $roots = @(
+        (Join-Path $env:LOCALAPPDATA 'AnthropicClaude'),
+        (Join-Path $env:PROGRAMFILES 'Claude'),
+        (Join-Path ${env:ProgramFiles(x86)} 'Claude')
+    ) | Where-Object { $_ -and (Test-Path $_) }
+
+    foreach ($root in $roots) {
+        # Prefer the versioned app-x.y.z\claude.exe over the Squirrel stub in
+        # the root, because the stub does not forward command-line arguments.
+        $versioned = Get-ChildItem -Path $root -Directory -Filter 'app-*' -ErrorAction SilentlyContinue |
+            Sort-Object {
+                $v = $_.Name -replace '^app-', ''
+                try { [version]($v -replace '[^0-9.].*$', '') } catch { [version]'0.0.0' }
+            } -Descending
+
+        foreach ($dir in $versioned) {
+            $exe = Join-Path $dir.FullName 'claude.exe'
+            if (Test-Path $exe) { return $exe }
+        }
+
+        $direct = Join-Path $root 'claude.exe'
+        if (Test-Path $direct) { return $direct }
+    }
+    return $null
+}
+
+function Get-Payload {
+    if ($PayloadPath) {
+        if (-not (Test-Path $PayloadPath)) { throw "Payload not found: $PayloadPath" }
+        return [System.IO.File]::ReadAllText($PayloadPath, [System.Text.Encoding]::UTF8)
+    }
+    $local = Join-Path (Split-Path -Parent $PSCommandPath) '..\dist\claude-rtl.bundle.js'
+    $local = [System.IO.Path]::GetFullPath($local)
+    if (Test-Path $local) {
+        return [System.IO.File]::ReadAllText($local, [System.Text.Encoding]::UTF8)
+    }
+    throw "Could not find dist\claude-rtl.bundle.js. Run: node src\build.js"
+}
+
+# --------------------------------------------------------- devtools protocol
+
+function Test-DebugPort {
+    param([int]$P)
+    try {
+        $r = Invoke-RestMethod -Uri "http://127.0.0.1:$P/json/version" -TimeoutSec 2
+        return $r
+    } catch { return $null }
+}
+
+function Get-PageTargets {
+    param([int]$P)
+    try {
+        $all = Invoke-RestMethod -Uri "http://127.0.0.1:$P/json/list" -TimeoutSec 5
+    } catch { return @() }
+    return @($all | Where-Object {
+        $_.type -eq 'page' -and $_.webSocketDebuggerUrl
+    })
+}
+
+function Send-CdpCommand {
+    param(
+        [System.Net.WebSockets.ClientWebSocket]$Socket,
+        [int]$Id,
+        [string]$Method,
+        [hashtable]$Params
+    )
+    $msg = @{ id = $Id; method = $Method }
+    if ($Params) { $msg.params = $Params }
+
+    $json  = $msg | ConvertTo-Json -Depth 6 -Compress
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    $seg   = New-Object System.ArraySegment[byte] -ArgumentList @(,$bytes)
+    $ct    = [System.Threading.CancellationToken]::None
+
+    $Socket.SendAsync($seg, [System.Net.WebSockets.WebSocketMessageType]::Text, $true, $ct).
+        GetAwaiter().GetResult()
+
+    # Drain until the reply with our id arrives; events may interleave.
+    $buffer = New-Object byte[] 65536
+    $deadline = (Get-Date).AddSeconds(15)
+    while ((Get-Date) -lt $deadline) {
+        $sb = New-Object System.Text.StringBuilder
+        do {
+            $seg2 = New-Object System.ArraySegment[byte] -ArgumentList @(,$buffer)
+            $res  = $Socket.ReceiveAsync($seg2, $ct).GetAwaiter().GetResult()
+            [void]$sb.Append([System.Text.Encoding]::UTF8.GetString($buffer, 0, $res.Count))
+        } while (-not $res.EndOfMessage)
+
+        $text = $sb.ToString()
+        if ($text -match '"id"\s*:\s*' + $Id + '\b') {
+            return ($text | ConvertFrom-Json)
+        }
+    }
+    throw "Timed out waiting for CDP reply to $Method"
+}
+
+function Inject-Target {
+    param([string]$WsUrl, [string]$Source)
+
+    $socket = New-Object System.Net.WebSockets.ClientWebSocket
+    try {
+        $ct = [System.Threading.CancellationToken]::None
+        $socket.ConnectAsync([Uri]$WsUrl, $ct).GetAwaiter().GetResult()
+
+        [void](Send-CdpCommand -Socket $socket -Id 1 -Method 'Page.enable')
+
+        # Survives in-app navigation and reloads.
+        [void](Send-CdpCommand -Socket $socket -Id 2 `
+            -Method 'Page.addScriptToEvaluateOnNewDocument' `
+            -Params @{ source = $Source })
+
+        # And apply to the page that is already showing.
+        $r = Send-CdpCommand -Socket $socket -Id 3 -Method 'Runtime.evaluate' `
+            -Params @{ expression = $Source; awaitPromise = $false }
+
+        if ($r.PSObject.Properties.Name -contains 'result' -and
+            $r.result.PSObject.Properties.Name -contains 'exceptionDetails') {
+            Write-Warning ("Payload threw: " + $r.result.exceptionDetails.text)
+            return $false
+        }
+        return $true
+    } finally {
+        try {
+            $socket.CloseAsync([System.Net.WebSockets.WebSocketCloseStatus]::NormalClosure,
+                '', [System.Threading.CancellationToken]::None).GetAwaiter().GetResult()
+        } catch { }
+        $socket.Dispose()
+    }
+}
+
+# ------------------------------------------------------------------ actions
+
+function New-DesktopShortcut {
+    $desktop  = [Environment]::GetFolderPath('Desktop')
+    $lnk      = Join-Path $desktop 'Claude (RTL).lnk'
+    $shell    = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($lnk)
+    $shortcut.TargetPath  = (Get-Command powershell.exe).Source
+    $shortcut.Arguments   = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -Watch"
+    $shortcut.WorkingDirectory = (Split-Path -Parent $PSCommandPath)
+    $shortcut.Description = 'Claude Desktop with Hebrew/Arabic RTL support'
+    $claude = Find-ClaudeExe
+    if ($claude) { $shortcut.IconLocation = $claude }
+    $shortcut.Save()
+    Write-Host "Shortcut created: $lnk" -ForegroundColor Green
+}
+
+function Invoke-Diagnose {
+    Write-Host "`n=== claude-rtl diagnostics ===" -ForegroundColor Cyan
+
+    $exe = Find-ClaudeExe
+    if ($exe) { Write-Host "Claude executable : $exe" -ForegroundColor Green }
+    else       { Write-Host "Claude executable : NOT FOUND" -ForegroundColor Red }
+
+    $running = @(Get-Process -Name 'claude' -ErrorAction SilentlyContinue)
+    Write-Host "Running processes : $($running.Count)"
+
+    $ver = Test-DebugPort -P $Port
+    if ($ver) {
+        Write-Host "Debug port $Port  : OPEN ($($ver.Browser))" -ForegroundColor Green
+        $targets = Get-PageTargets -P $Port
+        Write-Host "Page targets      : $($targets.Count)"
+        foreach ($t in $targets) { Write-Host "  - $($t.title)" }
+    } else {
+        Write-Host "Debug port $Port  : closed" -ForegroundColor Yellow
+        if ($running.Count -gt 0) {
+            Write-Host "  Claude is running but was not started with debugging enabled." -ForegroundColor Yellow
+            Write-Host "  Close Claude completely (check the tray) and run this script again." -ForegroundColor Yellow
+        }
+    }
+
+    try {
+        $p = Get-Payload
+        Write-Host "Payload           : OK ($($p.Length) chars)" -ForegroundColor Green
+    } catch {
+        Write-Host "Payload           : $($_.Exception.Message)" -ForegroundColor Red
+    }
+    Write-Host ""
+}
+
+# --------------------------------------------------------------------- main
+
+if ($CreateShortcut) { New-DesktopShortcut; return }
+if ($Diagnose)       { Invoke-Diagnose;     return }
+
+$payload = Get-Payload
+
+if (-not (Test-DebugPort -P $Port)) {
+    $running = @(Get-Process -Name 'claude' -ErrorAction SilentlyContinue)
+    if ($running.Count -gt 0) {
+        Write-Host "Claude is already running without the debugging port." -ForegroundColor Yellow
+        $answer = Read-Host "Restart it now? Unsent drafts may be lost. [y/N]"
+        if ($answer -notmatch '^[yY]') {
+            Write-Host "Aborted. Close Claude yourself, then run this script again."
+            return
+        }
+        $running | Stop-Process -Force
+        Start-Sleep -Seconds 3
+    }
+
+    $exe = Find-ClaudeExe
+    if (-not $exe) { throw "Claude Desktop not found. Run with -Diagnose for details." }
+
+    Write-Host "Starting Claude with RTL injection..." -ForegroundColor Cyan
+    Start-Process -FilePath $exe -ArgumentList "--remote-debugging-port=$Port"
+
+    $deadline = (Get-Date).AddSeconds(45)
+    while (-not (Test-DebugPort -P $Port)) {
+        if ((Get-Date) -gt $deadline) {
+            throw ("Claude did not open the debugging port within 45s. " +
+                   "Run with -Diagnose, and see the README fallback section.")
+        }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
+$injected = @{}
+
+function Invoke-InjectionPass {
+    $targets = Get-PageTargets -P $Port
+    foreach ($t in $targets) {
+        if ($injected.ContainsKey($t.id)) { continue }
+        try {
+            if (Inject-Target -WsUrl $t.webSocketDebuggerUrl -Source $payload) {
+                $injected[$t.id] = $true
+                $label = if ($t.title) { $t.title } else { $t.id }
+                Write-Host "RTL injected -> $label" -ForegroundColor Green
+            }
+        } catch {
+            Write-Warning "Injection failed for $($t.id): $($_.Exception.Message)"
+        }
+    }
+    return $targets.Count
+}
+
+# The renderer may not have a page target for a second or two after launch.
+$deadline = (Get-Date).AddSeconds(30)
+while ($injected.Count -eq 0 -and (Get-Date) -lt $deadline) {
+    [void](Invoke-InjectionPass)
+    if ($injected.Count -eq 0) { Start-Sleep -Milliseconds 750 }
+}
+
+if ($injected.Count -eq 0) {
+    Write-Warning "No page target accepted the payload. Run with -Diagnose."
+    return
+}
+
+Write-Host "`nRTL is active. Ctrl+Alt+R toggles it inside Claude." -ForegroundColor Green
+
+if ($Watch) {
+    Write-Host "Watching for new windows. Ctrl+C to stop (Claude keeps running).`n"
+    while ($true) {
+        Start-Sleep -Seconds 3
+        if (-not (Test-DebugPort -P $Port)) {
+            Write-Host "Claude closed. Exiting." -ForegroundColor Cyan
+            break
+        }
+        [void](Invoke-InjectionPass)
+    }
+}
