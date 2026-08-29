@@ -1,0 +1,14 @@
+{
+  "name": "claude-rtl",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hebrew/Arabic right-to-left rendering for Claude Desktop and claude.ai",
+  "scripts": {
+    "build": "node src/build.js && node userscript/build-userscript.js",
+    "test": "npm run build && node --test test/*.test.js",
+    "check": "node windows/patch-asar.js check"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}
