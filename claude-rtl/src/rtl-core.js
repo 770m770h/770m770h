@@ -34,6 +34,12 @@ function countMatches(text, re) {
   return n;
 }
 
+/** Count the strong-typed characters on each side. */
+function countStrong(text) {
+  if (!text) return { rtl: 0, ltr: 0 };
+  return { rtl: countMatches(text, RTL_STRONG), ltr: countMatches(text, LTR_STRONG) };
+}
+
 /**
  * Decide the base direction of a run of text.
  *
@@ -49,8 +55,7 @@ function detectDirection(text, opts) {
     ? opts.threshold
     : DEFAULT_THRESHOLD;
 
-  const rtl = countMatches(text, RTL_STRONG);
-  const ltr = countMatches(text, LTR_STRONG);
+  const { rtl, ltr } = countStrong(text);
 
   if (rtl === 0 && ltr === 0) return null;
   if (rtl === 0) return 'ltr';
@@ -66,5 +71,5 @@ function hasRtl(text) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { detectDirection, hasRtl, DEFAULT_THRESHOLD };
+  module.exports = { detectDirection, hasRtl, countStrong, DEFAULT_THRESHOLD };
 }

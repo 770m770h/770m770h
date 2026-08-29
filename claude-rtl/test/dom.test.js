@@ -74,10 +74,22 @@ test('Hebrew in a bare div (user message) is caught by the orphan pass', () => {
   assert.strictEqual($(dom, '#inner').getAttribute('dir'), 'rtl');
 });
 
-test('an explicit dir set by the app is respected', () => {
-  const dom = mount('<p id="a" dir="ltr">שלום עולם ומה שלומך</p>');
+test("Claude's own dir='ltr' on a Hebrew line is overridden", () => {
+  // Claude resolves direction with the first-strong-character rule and writes
+  // the result out, so deferring to an explicit dir means keeping the bug.
+  const dom = mount('<p id="a" dir="ltr">שלום עולם ומה שלומך היום</p>');
+  assert.strictEqual($(dom, '#a').getAttribute('dir'), 'rtl');
+});
+
+test("Claude's dir='ltr' on a line opening with English is still overridden", () => {
+  const dom = mount('<p id="a" dir="ltr">3 Next.js הוא פריימוורק מצוין לאתרים</p>');
+  assert.strictEqual($(dom, '#a').getAttribute('dir'), 'rtl');
+});
+
+test('respectAppDir:true opts back out of overriding Claude', () => {
+  const dom = mount('<p id="a" dir="ltr">שלום עולם ומה שלומך היום</p>');
+  dom.window.claudeRtl.config({ respectAppDir: true });
   assert.strictEqual($(dom, '#a').getAttribute('dir'), 'ltr');
-  assert.strictEqual($(dom, '#a').hasAttribute('data-crtl'), false);
 });
 
 test('dir="auto" is overridden, since that is the rule we improve on', () => {
@@ -131,4 +143,89 @@ test('threshold is tunable at runtime', () => {
   assert.strictEqual($(dom, '#a').getAttribute('dir'), 'ltr');
   dom.window.claudeRtl.config({ threshold: 0.1 });
   assert.strictEqual($(dom, '#a').getAttribute('dir'), 'rtl');
+});
+
+// ---------------------------------------------- sticky composer & overrides
+
+test('a composer line opening with a number and English stays RTL', () => {
+  const dom = mount('<div contenteditable="true"><p id="l">3 Next</p></div>');
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'rtl',
+    'a half-typed prefix must not flip the box to LTR');
+});
+
+test('the composer holds RTL as a mixed sentence is typed out', () => {
+  const dom = mount('<div contenteditable="true"><p id="l"></p></div>');
+  const line = $(dom, '#l');
+  const seen = new Set();
+  for (const text of ['3', '3 N', '3 Next.js', '3 Next.js ה', '3 Next.js הוא טוב']) {
+    line.textContent = text;
+    dom.window.claudeRtl.resweep();
+    seen.add(line.getAttribute('dir'));
+  }
+  assert.deepStrictEqual([...seen], ['rtl'], 'direction must never flip mid-sentence');
+});
+
+test('a genuinely English composer line does become LTR', () => {
+  const dom = mount(
+    '<div contenteditable="true"><p id="l">please write this in english</p></div>');
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'ltr');
+});
+
+test('composerSticky:false restores the naive per-keystroke behaviour', () => {
+  const dom = mount('<div contenteditable="true"><p id="l">3 Next</p></div>');
+  dom.window.claudeRtl.config({ composerSticky: false });
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'ltr');
+});
+
+test('lock() pins a block against the heuristic', () => {
+  const dom = mount('<div contenteditable="true"><p id="l">hello there friends</p></div>');
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'ltr');
+
+  const range = dom.window.document.createRange();
+  range.selectNodeContents($(dom, '#l'));
+  dom.window.getSelection().removeAllRanges();
+  dom.window.getSelection().addRange(range);
+
+  assert.strictEqual(dom.window.claudeRtl.lock('rtl'), true);
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'rtl');
+  assert.strictEqual($(dom, '#l').getAttribute('data-crtl-lock'), 'rtl');
+
+  dom.window.claudeRtl.resweep();
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'rtl', 'lock survives a sweep');
+
+  dom.window.claudeRtl.unlock();
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'ltr');
+});
+
+test('Ctrl+Alt+ArrowRight forces the focused line RTL', () => {
+  const dom = mount('<div contenteditable="true"><p id="l">hello there friends</p></div>');
+  const range = dom.window.document.createRange();
+  range.selectNodeContents($(dom, '#l'));
+  dom.window.getSelection().removeAllRanges();
+  dom.window.getSelection().addRange(range);
+
+  dom.window.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+    key: 'ArrowRight', ctrlKey: true, altKey: true, bubbles: true, cancelable: true
+  }));
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'rtl');
+
+  dom.window.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+    key: 'ArrowLeft', ctrlKey: true, altKey: true, bubbles: true, cancelable: true
+  }));
+  assert.strictEqual($(dom, '#l').getAttribute('dir'), 'ltr');
+});
+
+test('forceRtl() makes a single Hebrew word win the line', () => {
+  const dom = mount('<p id="a">a very long english sentence with one word שלום</p>');
+  assert.strictEqual($(dom, '#a').getAttribute('dir'), 'ltr');
+  dom.window.claudeRtl.forceRtl();
+  assert.strictEqual($(dom, '#a').getAttribute('dir'), 'rtl');
+});
+
+test('status() reports what Claude set versus what we set', () => {
+  const dom = mount('<p id="a" dir="ltr">שלום עולם ומה שלומך</p><p id="b">plain</p>');
+  const st = dom.window.claudeRtl.status();
+  assert.strictEqual(st.enabled, true);
+  assert.ok(st.marked >= 1);
+  assert.strictEqual(typeof st.dirSetByClaude, 'number');
 });

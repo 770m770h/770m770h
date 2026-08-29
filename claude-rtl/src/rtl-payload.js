@@ -34,13 +34,22 @@
 
   var detectDirection = core.detectDirection;
   var hasRtl = core.hasRtl;
+  var countStrong = core.countStrong;
 
   // ---------------------------------------------------------------- config
 
   var DEFAULTS = {
     threshold: 0.3,        // share of strong chars that must be RTL
+    // Claude ships its own RTL pass that resolves direction with the Unicode
+    // first-strong-character rule and writes an explicit dir attribute. That
+    // rule is precisely what we are here to replace, so by default we take
+    // over from it. Set true to stand down wherever Claude set dir itself.
+    respectAppDir: false,
     composerMode: 'js',    // 'js' | 'css' | 'off'
     composerDefault: 'rtl',// direction of an empty input box
+    composerSticky: true,  // don't flip the line while a sentence is half-typed
+    composerEnglishRun: 12,// Latin chars, with no Hebrew, before a line is LTR
+    overrideKeys: 'ctrl-alt', // 'ctrl-alt' | 'ctrl-shift' | false
     tables: true,          // flip column order of Hebrew-dominant tables
     hotkey: true,          // Ctrl+Alt+R toggles
     maxWritesPerElement: 40
@@ -113,15 +122,22 @@
   // ------------------------------------------------------------ applying
 
   var writeCounts = new WeakMap();
+  var lockedDir = new WeakMap();   // manual override wins over every heuristic
+  var lastDir = new WeakMap();     // previous decision, for sticky lines
+  var originalDir = new WeakMap(); // what Claude had set, so we can put it back
 
   function setDirection(el, dir) {
     if (!dir) return;
+    var lock = lockedDir.get(el);
+    if (lock) dir = lock;
+    lastDir.set(el, dir);
     if (el.getAttribute('dir') === dir && el.hasAttribute('data-crtl')) return;
 
     var n = (writeCounts.get(el) || 0) + 1;
     if (n > config.maxWritesPerElement) return; // stop fighting a re-render loop
     writeCounts.set(el, n);
 
+    if (!originalDir.has(el)) originalDir.set(el, el.getAttribute('dir'));
     el.setAttribute('dir', dir);
     el.setAttribute('data-crtl', '1');
   }
@@ -129,23 +145,52 @@
   function clearDirection(el) {
     if (!el.hasAttribute('data-crtl')) return;
     el.removeAttribute('data-crtl');
-    el.removeAttribute('dir');
+    el.removeAttribute('data-crtl-lock');
+    // Put back whatever Claude had, rather than stripping the attribute and
+    // leaving the app with less than it started with.
+    var was = originalDir.get(el);
+    if (was === undefined || was === null) el.removeAttribute('dir');
+    else el.setAttribute('dir', was);
+    originalDir.delete(el);
+    lastDir.delete(el);
   }
 
   /**
-   * The app itself now ships some RTL handling. An explicit dir="rtl"/"ltr"
-   * set by Claude is respected; dir="auto" is overridden, because the
-   * first-strong-character rule it implements is exactly what we are here to
-   * improve on.
+   * Whether to leave an element to Claude's own RTL pass.
+   *
+   * Claude resolves direction with the first-strong-character rule and writes
+   * the result out as an explicit dir attribute, so deferring to "an explicit
+   * dir" means deferring to exactly the behaviour we are replacing — a line
+   * opening with an English word or a number reads LTR and nothing can change
+   * it. So this is off by default and only honours a lock we set ourselves.
    */
   function appOwnsDirection(el) {
-    if (el.hasAttribute('data-crtl')) return false;
+    if (!config.respectAppDir) return false;
+    if (el.hasAttribute('data-crtl') || lockedDir.has(el)) return false;
     var d = el.getAttribute('dir');
     return d === 'rtl' || d === 'ltr';
   }
 
+  /** Force a direction on one block and stop the heuristic touching it. */
+  function lockDirection(el, dir) {
+    lockedDir.set(el, dir);
+    writeCounts.delete(el);
+    el.setAttribute('dir', dir);
+    el.setAttribute('data-crtl', '1');
+    el.setAttribute('data-crtl-lock', dir);
+  }
+
+  function unlockDirection(el) {
+    lockedDir.delete(el);
+    el.removeAttribute('data-crtl-lock');
+  }
+
   function processBlock(el) {
     if (appOwnsDirection(el) || isOpaque(el)) return;
+    // Lines inside the input box belong to processComposer, which keeps a
+    // sticky history for them. Judging them here as ordinary blocks would
+    // overwrite that history with a naive per-keystroke verdict.
+    if (el.closest('[contenteditable="true"]')) return;
     var text = directionalText(el);
     if (!hasRtl(text)) {
       // Never spend writes on the all-English UI.
@@ -194,6 +239,46 @@
 
   // ------------------------------------------------------------- composer
 
+  /**
+   * Direction for one line of the input box.
+   *
+   * A line is judged on what it will be, not on what has been typed so far.
+   * Somebody opening with "3 files" or "Next.js" is mid-sentence, and flipping
+   * the box to LTR on that prefix — then back again once Hebrew arrives — is
+   * the jitter that makes typing mixed Hebrew unusable. So a line holds its
+   * direction until it is unambiguously an English line: no Hebrew at all, and
+   * long enough that it is clearly not a prefix.
+   */
+  function composerLineDirection(el, text) {
+    var lock = lockedDir.get(el);
+    if (lock) return lock;
+
+    if (!config.composerSticky) {
+      return detectDirection(text, { threshold: config.threshold }) ||
+             config.composerDefault;
+    }
+
+    var counts = countStrong(text);
+    var prev = lastDir.get(el);
+
+    // Unambiguously an English line: no Hebrew at all, and long enough that it
+    // is not just the opening of a Hebrew sentence.
+    if (counts.rtl === 0 && counts.ltr >= config.composerEnglishRun) return 'ltr';
+
+    // Once a line is RTL it stays RTL. Re-deriving the ratio here is what
+    // makes the box lurch: the first Hebrew letter typed after "3 Next.js" is
+    // one strong character against six, which scores LTR — flipping the line
+    // at the exact moment the writer starts the Hebrew part of the sentence.
+    if (prev === 'rtl') return 'rtl';
+
+    // No history, or currently LTR: judge normally, so an English line is
+    // promoted the moment Hebrew carries it.
+    if (counts.rtl > 0) {
+      return detectDirection(text, { threshold: config.threshold });
+    }
+    return prev || config.composerDefault;
+  }
+
   function processComposer(root) {
     if (config.composerMode === 'off') return;
 
@@ -215,16 +300,11 @@
         var line = lines[j];
         if (isOpaque(line) || line.querySelector(BLOCK_SELECTOR)) continue;
         anyLine = true;
-        var text = directionalText(line);
-        var dir = detectDirection(text, { threshold: config.threshold });
-        // An empty line keeps the writer's expected direction rather than
-        // jumping to LTR the moment they delete a word.
-        setDirection(line, dir || config.composerDefault);
+        setDirection(line, composerLineDirection(line, directionalText(line)));
       }
 
-      var rootText = directionalText(editor);
-      var rootDir = detectDirection(rootText, { threshold: config.threshold });
-      setDirection(editor, rootDir || (anyLine ? null : config.composerDefault));
+      setDirection(editor,
+        composerLineDirection(editor, directionalText(editor)));
     }
   }
 
@@ -349,14 +429,58 @@
   document.addEventListener('DOMContentLoaded', boot);
   window.addEventListener('load', boot);
 
-  if (config.hotkey) {
-    window.addEventListener('keydown', function (e) {
-      if (e.ctrlKey && e.altKey && (e.key === 'r' || e.key === 'R')) {
-        e.preventDefault();
-        setEnabled(!enabled);
-      }
-    }, true);
+  // ------------------------------------------------------- manual override
+
+  /** The block the caret sits in, falling back to the focused element. */
+  function currentBlock() {
+    var node = null;
+    var sel = window.getSelection && window.getSelection();
+    if (sel && sel.anchorNode) node = sel.anchorNode;
+    if (!node) node = document.activeElement;
+    if (!node) return null;
+
+    var el = node.nodeType === 1 ? node : node.parentElement;
+    if (!el) return null;
+
+    // Inside the input box, target the individual line, not the whole editor.
+    var editor = el.closest('[contenteditable="true"]');
+    if (editor) {
+      var line = el.closest('p, div, li, h1, h2, h3');
+      if (line && editor.contains(line) && line !== editor) return line;
+      return editor;
+    }
+    return el.closest(BLOCK_SELECTOR) || el;
   }
+
+  function applyOverride(dir) {
+    var el = currentBlock();
+    if (!el) return null;
+    lockDirection(el, dir);
+    return el;
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (config.hotkey && e.ctrlKey && e.altKey && !e.shiftKey &&
+        (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault();
+      setEnabled(!enabled);
+      return;
+    }
+
+    if (!enabled || !config.overrideKeys) return;
+
+    var wanted = config.overrideKeys === 'ctrl-shift'
+      ? (e.ctrlKey && e.shiftKey && !e.altKey)
+      : (e.ctrlKey && e.altKey && !e.shiftKey);
+    if (!wanted) return;
+
+    var dir = e.key === 'ArrowRight' ? 'rtl'
+            : e.key === 'ArrowLeft' ? 'ltr'
+            : null;
+    if (!dir) return;
+
+    if (applyOverride(dir)) e.preventDefault();
+  }, true);
 
   // Small console API, handy when tuning the threshold live.
   window.claudeRtl = {
@@ -377,6 +501,39 @@
     },
     detect: function (text) {
       return detectDirection(text, { threshold: config.threshold });
+    },
+
+    /** Pin the block under the caret. claudeRtl.lock('rtl') */
+    lock: function (dir) { return !!applyOverride(dir === 'ltr' ? 'ltr' : 'rtl'); },
+
+    /** Release the block under the caret back to the heuristic. */
+    unlock: function () {
+      var el = currentBlock();
+      if (!el) return false;
+      unlockDirection(el);
+      sweep(null);
+      return true;
+    },
+
+    /** Blunt instrument: any Hebrew at all means RTL, everywhere. */
+    forceRtl: function () {
+      return window.claudeRtl.config({ threshold: 0, composerDefault: 'rtl' });
+    },
+
+    /** What the patch currently sees — useful when reporting a problem. */
+    status: function () {
+      var appDir = 0;
+      var all = document.querySelectorAll('[dir]');
+      for (var i = 0; i < all.length; i++) {
+        if (!all[i].hasAttribute('data-crtl')) appDir++;
+      }
+      return {
+        enabled: enabled,
+        marked: document.querySelectorAll('[data-crtl]').length,
+        locked: document.querySelectorAll('[data-crtl-lock]').length,
+        dirSetByClaude: appDir,
+        config: config
+      };
     }
   };
 })();
