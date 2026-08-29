@@ -146,6 +146,43 @@ function Test-DebugPort {
     } catch { return $null }
 }
 
+# Claude Desktop 1.37+ refuses to start when a debugging switch is on the
+# command line:
+#
+#   Claude: refusing to start — a debugging or network-override switch is
+#   present on the command line.
+#
+# That is a deliberate guard in the app, and it makes this launcher's whole
+# approach impossible on such a build. It MUST be detected before we close a
+# running Claude: otherwise we shut the app down and then cannot start it
+# again, leaving the user with no Claude at all.
+#
+# The probe is safe precisely because the guard exists — the process prints the
+# refusal and exits immediately without touching a running instance. On a build
+# without the guard the process keeps running (and is the launch we wanted), so
+# "still alive after a few seconds" is read as "allowed".
+function Test-DebugSwitchRefused {
+    param([string]$Exe, [int]$P)
+
+    $errFile = Join-Path $env:TEMP ("claude-rtl-probe-err-" + [guid]::NewGuid().ToString('N') + ".txt")
+    $outFile = Join-Path $env:TEMP ("claude-rtl-probe-out-" + [guid]::NewGuid().ToString('N') + ".txt")
+    try {
+        $proc = Start-Process -FilePath $Exe -ArgumentList "--remote-debugging-port=$P" `
+            -PassThru -RedirectStandardError $errFile -RedirectStandardOutput $outFile
+        if (-not $proc.WaitForExit(8000)) { return $false }  # still running => not refused
+        if ($proc.ExitCode -eq 0) { return $false }
+        $text = ''
+        if (Test-Path $errFile) { $text = [string](Get-Content $errFile -Raw -ErrorAction SilentlyContinue) }
+        return ($text -match 'refusing to start')
+    } catch {
+        return $false
+    } finally {
+        foreach ($f in @($errFile, $outFile)) {
+            if (Test-Path $f) { Remove-Item $f -Force -ErrorAction SilentlyContinue }
+        }
+    }
+}
+
 function Get-PageTargets {
     param([int]$P)
     try {
@@ -258,14 +295,19 @@ function Invoke-Diagnose {
     $isMsix = $exe -and ($exe -like '*\WindowsApps\Claude_*')
     Write-Host ("Install type      : " + $(if ($isMsix) { 'Microsoft Store / MSIX' } elseif ($exe) { 'legacy (Squirrel/NSIS)' } else { 'unknown' }))
     if ($isMsix) {
-        Write-Host "  A Store build only opens the debug port on a cold start, so this" -ForegroundColor DarkGray
-        Write-Host "  launcher must close Claude and reopen it the first time." -ForegroundColor DarkGray
+        Write-Host "  A Store build is read-only, so the asar patch (method 2) cannot apply." -ForegroundColor DarkGray
+        Write-Host "  The debug port, if allowed at all, only binds on a cold start." -ForegroundColor DarkGray
     }
 
     $running = Get-ClaudeDesktopProcess
     Write-Host "Running (Desktop) : $($running.Count)"
 
     $ver = Test-DebugPort -P $Port
+    # Resolve the guard first: when the build refuses debugging switches, telling
+    # the user to close Claude and try again would be sending them nowhere.
+    $refused = $false
+    if ($exe -and -not $ver) { $refused = Test-DebugSwitchRefused -Exe $exe -P $Port }
+
     if ($ver) {
         Write-Host "Debug port $Port  : OPEN ($($ver.Browser))" -ForegroundColor Green
         $targets = Get-PageTargets -P $Port
@@ -273,9 +315,20 @@ function Invoke-Diagnose {
         foreach ($t in $targets) { Write-Host "  - $($t.title)" }
     } else {
         Write-Host "Debug port $Port  : closed" -ForegroundColor Yellow
-        if ($running.Count -gt 0) {
+        if ($running.Count -gt 0 -and -not $refused) {
             Write-Host "  Claude is running but was not started with debugging enabled." -ForegroundColor Yellow
             Write-Host "  Close Claude completely (check the tray) and run this script again." -ForegroundColor Yellow
+        }
+    }
+
+    if ($exe -and -not $ver) {
+        if ($refused) {
+            Write-Host "Debug switch      : REFUSED by this build" -ForegroundColor Red
+            Write-Host "  Claude exits with 'refusing to start - a debugging or network-override" -ForegroundColor DarkGray
+            Write-Host "  switch is present on the command line'. The launcher cannot work here;" -ForegroundColor DarkGray
+            Write-Host "  use the browser userscript on claude.ai (see README)." -ForegroundColor DarkGray
+        } else {
+            Write-Host "Debug switch      : accepted" -ForegroundColor Green
         }
     }
 
@@ -296,6 +349,28 @@ if ($Diagnose)       { Invoke-Diagnose;     return }
 $payload = Get-Payload
 
 if (-not (Test-DebugPort -P $Port)) {
+    $exeCheck = Find-ClaudeExe
+    if (-not $exeCheck) { throw "Claude Desktop not found. Run with -Diagnose for details." }
+
+    # Check this BEFORE closing anything. On a build that refuses debugging
+    # switches there is no launcher route at all, and closing Claude here would
+    # leave the user unable to reopen it through this script.
+    if (Test-DebugSwitchRefused -Exe $exeCheck -P $Port) {
+        Write-Host ""
+        Write-Host "This build of Claude Desktop refuses to start with a debugging switch." -ForegroundColor Red
+        Write-Host "  Claude: refusing to start - a debugging or network-override switch" -ForegroundColor DarkGray
+        Write-Host "  is present on the command line." -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "That guard makes this launcher (method 1) impossible on this build, and" -ForegroundColor Yellow
+        Write-Host "the asar patch (method 2) is blocked on Store/MSIX installs as well." -ForegroundColor Yellow
+        Write-Host "Working around a deliberate protection is out of scope for this project." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Use the browser userscript on claude.ai instead - see README." -ForegroundColor Cyan
+        Write-Host "Claude Desktop was NOT touched." -ForegroundColor Green
+        Write-Host ""
+        return
+    }
+
     $running = Get-ClaudeDesktopProcess
     if ($running.Count -gt 0) {
         Write-Host "Claude Desktop is already running without the debugging port." -ForegroundColor Yellow
@@ -320,8 +395,15 @@ if (-not (Test-DebugPort -P $Port)) {
     $deadline = (Get-Date).AddSeconds(45)
     while (-not (Test-DebugPort -P $Port)) {
         if ((Get-Date) -gt $deadline) {
-            throw ("Claude did not open the debugging port within 45s. " +
-                   "Run with -Diagnose, and see the README fallback section.")
+            # We may have closed Claude to get here. Never leave the user
+            # without their app because the injection route failed.
+            Write-Host "Claude did not open the debugging port within 45s." -ForegroundColor Red
+            if ((Get-ClaudeDesktopProcess).Count -eq 0) {
+                Write-Host "Reopening Claude normally, without RTL..." -ForegroundColor Yellow
+                Start-Process -FilePath $exe
+            }
+            throw ("Claude did not open the debugging port. Run with -Diagnose, " +
+                   "and see the README fallback section (browser userscript).")
         }
         Start-Sleep -Milliseconds 500
     }

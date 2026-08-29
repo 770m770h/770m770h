@@ -62,11 +62,29 @@ detectDirection('The quick brown fox jumps שלום')   →  ltr   ✅
 
 יש שתי דרכים. **התחל מהראשונה.**
 
-> **גרסת Microsoft Store / MSIX:** אם Claude הותקן מחנות Microsoft (הנתיב שלו
-> תחת `C:\Program Files\WindowsApps\Claude_…`), **שיטה 2 לא רלוונטית** — הבינארי
-> חתום עם `OnlyLoadAppFromAsar` דלוק ותיקיית ההתקנה לקריאה בלבד. השתמש בשיטה 1.
-> בגרסה הזאת המשגר סוגר ופותח את Claude פעם אחת כדי לפתוח את פורט הניפוי
-> (הפעלה חמה לא פותחת אותו). `-Diagnose` יזהה ויכתוב את סוג ההתקנה.
+> ### ⚠️ בגרסאות Claude Desktop חדשות — שתי השיטות חסומות
+>
+> החל מ-Claude Desktop 1.37 (נבדק על 1.37937.3), האפליקציה **מסרבת לעלות**
+> כשיש דגל ניפוי בשורת הפקודה:
+>
+> ```
+> Claude: refusing to start — a debugging or network-override switch is
+> present on the command line.
+> ```
+>
+> זה חוסם את **שיטה 1** לחלוטין. ובהתקנת Microsoft Store / MSIX (נתיב
+> `C:\Program Files\WindowsApps\Claude_…`) גם **שיטה 2** חסומה — `OnlyLoadAppFromAsar`
+> דלוק ותיקיית ההתקנה לקריאה בלבד.
+>
+> **בדוק מה המצב אצלך:**
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File windows\claude-rtl.ps1 -Diagnose
+> ```
+> אם כתוב `Debug switch : REFUSED by this build` — **דלג לסעיף "התקנה — דפדפן"**.
+> המשגר יזהה את המצב לבד ויסרב בלי לגעת ב-Claude שלך.
+>
+> אלה הגנות מכוונות של היצרן, והפרויקט הזה לא עוקף אותן — באותה רוח שבה הוא
+> כבר מסרב להתקין תעודת-שורש עצמית בשיטה 2.
 
 ### שיטה 1: משגר (מומלץ) — לא נוגע בשום קובץ
 
