@@ -41,16 +41,25 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version 2.0
+Set-StrictMode -Version 1.0
 
 # --------------------------------------------------------------- discovery
 
 function Find-ClaudeExe {
-    $roots = @(
-        (Join-Path $env:LOCALAPPDATA 'AnthropicClaude'),
-        (Join-Path $env:PROGRAMFILES 'Claude'),
-        (Join-Path ${env:ProgramFiles(x86)} 'Claude')
-    ) | Where-Object { $_ -and (Test-Path $_) }
+    $bases = @(
+        $env:LOCALAPPDATA,
+        $env:PROGRAMFILES,
+        ${env:ProgramFiles(x86)}
+    ) | Where-Object { $_ }
+
+    $roots = @()
+    foreach ($b in $bases) {
+        foreach ($name in @('AnthropicClaude', 'Claude')) {
+            $candidate = Join-Path $b $name
+            if (Test-Path $candidate) { $roots += $candidate }
+        }
+    }
+    $roots = $roots | Select-Object -Unique
 
     foreach ($root in $roots) {
         # Prefer the versioned app-x.y.z\claude.exe over the Squirrel stub in
@@ -271,7 +280,10 @@ function Invoke-InjectionPass {
         try {
             if (Inject-Target -WsUrl $t.webSocketDebuggerUrl -Source $payload) {
                 $injected[$t.id] = $true
-                $label = if ($t.title) { $t.title } else { $t.id }
+                $label = $t.id
+            if ($t.PSObject.Properties.Name -contains 'title' -and $t.title) {
+                $label = $t.title
+            }
                 Write-Host "RTL injected -> $label" -ForegroundColor Green
             }
         } catch {

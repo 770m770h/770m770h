@@ -6,8 +6,9 @@
  * application chrome.
  */
 
-/* A block we decided on gets logical alignment, so it follows its own dir. */
-[data-crtl] {
+/* A block we decided on gets logical alignment, so it follows its own dir.
+   Two attributes, so this outranks a single utility class like .text-left. */
+[data-crtl][dir] {
   text-align: start;
 }
 
@@ -57,10 +58,24 @@ li[data-crtl] {
   text-align: start;
 }
 
-ul[dir="rtl"],
-ol[dir="rtl"] {
-  padding-inline-start: 1.5em;
-  padding-inline-end: 0;
+/* Indentation is the trap here. Claude indents lists with a physical
+   padding-left utility, which does NOT mirror when the direction flips — so
+   setting padding-inline-start alone leaves the list padded on BOTH sides and
+   the bullets hanging off the wrong edge. The physical properties have to be
+   zeroed explicitly. Two attributes keep this above utility-class
+   specificity. */
+ul[data-crtl][dir="rtl"],
+ol[data-crtl][dir="rtl"] {
+  padding-left: 0;
+  margin-left: 0;
+  padding-right: 1.5em;
+}
+
+/* Nested lists indent from the right as well. */
+[dir="rtl"] li > ul[data-crtl],
+[dir="rtl"] li > ol[data-crtl] {
+  padding-right: 1.5em;
+  padding-left: 0;
 }
 
 /* --- Tables --- */
@@ -72,14 +87,14 @@ table[dir="rtl"] td {
 
 /* --- Quotes --- */
 
-blockquote[dir="rtl"] {
-  border-inline-start: 2px solid currentColor;
-  border-inline-end: none;
-  padding-inline-start: 1em;
-  padding-inline-end: 0;
+/* Same physical-property problem as lists: the quote bar and its padding are
+   set with border-left/padding-left and would stay on the left. */
+blockquote[data-crtl][dir="rtl"] {
   border-left: none;
-  border-right: none;
-  opacity: inherit;
+  padding-left: 0;
+  margin-left: 0;
+  border-right: 2px solid currentColor;
+  padding-right: 1em;
 }
 
 /* --- Composer --- */

@@ -40,8 +40,13 @@ detectDirection('The quick brown fox jumps שלום')   →  ltr   ✅
 - **קוד ומתמטיקה אף פעם לא מתהפכים.** בלוקי קוד, `<code>` בשורה, ו-KaTeX/MathJax
   מסומנים כ-`unicode-bidi: isolate` — הם אי עצמאי בתוך המשפט העברי, כך שגם
   הפיסוק סביבם נוחת במקום הנכון.
-- **רשימות וטבלאות לפי פריט/תא.** רשימה עם פריט עברי ופריט אנגלי מקבלת כיוון
-  נפרד לכל פריט. טבלה שרובה עברית הופכת גם את סדר העמודות.
+- **רשימות וטבלאות לפי פריט/תא.** זו הנקודה שהכי בולטת לעין: Claude מחיל כיוון
+  אחד על כל ה-`<ul>` לפי התו החזק הראשון שלה — כלומר **הפריט הראשון קובע לכל
+  הרשימה**. פריט ראשון שמתחיל במספר, במקף, במרכאות או במילה באנגלית מהפך את
+  הרשימה כולה. כאן כל פריט נשקל בנפרד, ובנוסף גם המכולה.
+  ההזחה טופלה במפורש: Claude מזיח רשימות עם `padding-left` פיזי, שלא מתהפך עם
+  הכיוון — `padding-inline-start` לבדו היה מותיר ריפוד **משני הצדדים** והנקודות
+  היו נתלות בקצה הלא נכון.
 - **תיבת הכתיבה.** כל שורה בתיבה מקבלת כיוון משלה; תיבה ריקה מתחילה בעברית.
 
 ### עמידות לעדכונים
@@ -63,27 +68,30 @@ detectDirection('The quick brown fox jumps שלום')   →  ltr   ✅
 **שום קובץ בהתקנה לא משתנה**: החתימה הדיגיטלית נשארת שלמה, לא מותקנת שום תעודה,
 ועדכון של Claude לא מוחק כלום.
 
-דרישות: Node.js (לבנייה בלבד). PowerShell המובנה של Windows.
+**אין צורך ב-Node.js.** הקוד הבנוי כבר נמצא ב-`dist/`. צריך רק את PowerShell
+שמגיע עם Windows.
+
+#### שלוש פעולות
+
+1. הורד את הרפו — כפתור **Code → Download ZIP** בגיטהאב, וחלץ.
+2. היכנס לתיקייה `claude-rtl\windows`.
+3. **לחיצה כפולה על `Claude-RTL.cmd`**.
+
+זהו. Claude ייפתח עם RTL. סגירת החלון השחור עוצרת את המשגר; Claude ממשיך לרוץ.
+
+<details>
+<summary>העדפת שורת פקודה</summary>
 
 ```powershell
-git clone https://github.com/770m770h/770m770h.git
-cd 770m770h\claude-rtl
-node src\build.js
-
-# בדיקה שהכל במקום
-powershell -ExecutionPolicy Bypass -File windows\claude-rtl.ps1 -Diagnose
-
-# הפעלה
-powershell -ExecutionPolicy Bypass -File windows\claude-rtl.ps1 -Watch
-```
-
-צור קיצור דרך לשולחן העבודה כדי לא להריץ פקודה בכל פעם:
-
-```powershell
+cd claude-rtl
+powershell -ExecutionPolicy Bypass -File windows\claude-rtl.ps1 -Diagnose   # בדיקה
+powershell -ExecutionPolicy Bypass -File windows\claude-rtl.ps1 -Watch      # הפעלה
 powershell -ExecutionPolicy Bypass -File windows\claude-rtl.ps1 -CreateShortcut
 ```
+</details>
 
-מעכשיו הפעל את Claude דרך הקיצור **"Claude (RTL)"**.
+אם משהו לא עובד, `Claude-RTL.cmd` מריץ אבחון אוטומטית ומשאיר את החלון פתוח.
+`-Diagnose` מדפיס איפה Claude נמצא, אם הפורט נפתח, וכמה חלונות נמצאו.
 
 > **מה המחיר:** כל עוד Claude רץ כך, הוא מאזין בפורט ניפוי על `127.0.0.1`.
 > כל תוכנית שרצה תחת המשתמש שלך יכולה להתחבר אליו ולקרוא את התוכן.
@@ -233,11 +241,12 @@ claudeRtl.status()
 
 ```bash
 npm install
-npm test      # 44 בדיקות: לוגיקת כיוון, שכבת DOM (jsdom), והפצ'ר
+npm test      # 56 בדיקות: לוגיקת כיוון, שכבת DOM (jsdom), והפצ'ר
 npm run build
 ```
 
 ```
+windows/Claude-RTL.cmd    לחיצה כפולה — שיטה 1
 src/rtl-core.js       זיהוי כיוון — לוגיקה טהורה, בלי DOM
 src/rtl-payload.js    שכבת DOM: סריקה, MutationObserver, מתג
 src/rtl.css           כללים סטטיים (בידוד קוד, רשימות, טבלאות)

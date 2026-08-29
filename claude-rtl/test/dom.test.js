@@ -229,3 +229,98 @@ test('status() reports what Claude set versus what we set', () => {
   assert.ok(st.marked >= 1);
   assert.strictEqual(typeof st.dirSetByClaude, 'number');
 });
+
+// ------------------------------------------------- bulleted lists (reported)
+
+/**
+ * Reported: a Hebrew bulleted list renders entirely left-to-right. Claude
+ * resolves one direction for the whole <ul> from its first strong character,
+ * so whatever the first item happens to open with decides the list. These
+ * cover each opener that was suspected.
+ */
+const LIST_OPENERS = {
+  'a number':        '3 קבצים חדשים נוצרו בתיקייה',
+  'an English word': 'Next.js הותקן בהצלחה בפרויקט',
+  'a dash':          '— התקנה הושלמה בהצלחה כאן',
+  'a quote mark':    '"ציטוט" של משהו שנאמר בעברית',
+  'a bracket':       '(הערה) שנכתבה כאן בעברית',
+  'a percent sign':  '50% מהמשימות הושלמו בהצלחה'
+};
+
+for (const [label, first] of Object.entries(LIST_OPENERS)) {
+  test(`a Hebrew list whose first item opens with ${label} stays RTL`, () => {
+    const dom = mount(
+      `<ul id="u"><li id="a">${first}</li><li id="b">עוד פריט ברשימה הזאת</li></ul>`);
+    assert.strictEqual($(dom, '#u').getAttribute('dir'), 'rtl', 'list container');
+    assert.strictEqual($(dom, '#a').getAttribute('dir'), 'rtl', 'first item');
+    assert.strictEqual($(dom, '#b').getAttribute('dir'), 'rtl', 'second item');
+  });
+}
+
+test('an ordered list behaves the same as a bulleted one', () => {
+  const dom = mount(
+    '<ol id="o"><li id="a">1. שלב ראשון בתהליך ההתקנה</li>' +
+    '<li id="b">שלב שני של התהליך</li></ol>');
+  assert.strictEqual($(dom, '#o').getAttribute('dir'), 'rtl');
+  assert.strictEqual($(dom, '#a').getAttribute('dir'), 'rtl');
+});
+
+test('markdown lists wrapping items in <p> get both levels', () => {
+  const dom = mount(
+    '<ul id="u"><li id="a"><p id="p">Next.js הותקן בהצלחה כאן</p></li></ul>');
+  assert.strictEqual($(dom, '#u').getAttribute('dir'), 'rtl');
+  assert.strictEqual($(dom, '#a').getAttribute('dir'), 'rtl');
+  assert.strictEqual($(dom, '#p').getAttribute('dir'), 'rtl');
+});
+
+test('a nested Hebrew list is flipped at every level', () => {
+  const dom = mount(
+    '<ul id="outer"><li id="oi">פריט חיצוני ברשימה' +
+    '<ul id="inner"><li id="ii">פריט פנימי מקונן</li></ul></li></ul>');
+  assert.strictEqual($(dom, '#outer').getAttribute('dir'), 'rtl');
+  assert.strictEqual($(dom, '#inner').getAttribute('dir'), 'rtl');
+  assert.strictEqual($(dom, '#ii').getAttribute('dir'), 'rtl');
+});
+
+test('a purely English list is left completely alone', () => {
+  const dom = mount(
+    '<ul id="u"><li id="a">install the package</li>' +
+    '<li id="b">run the build command</li></ul>');
+  assert.strictEqual($(dom, '#u').hasAttribute('dir'), false);
+  assert.strictEqual($(dom, '#a').hasAttribute('dir'), false);
+});
+
+test('our list indentation outranks a physical padding-left utility', () => {
+  // The bug this guards: Claude indents lists with padding-left, which does
+  // not mirror when direction flips. padding-inline-start alone would leave
+  // the list padded on both sides with bullets on the wrong edge.
+  const dom = new JSDOM(
+    '<!doctype html><html><head><style>' +
+    '.pl-7{padding-left:1.75rem}' +
+    '</style></head><body>' +
+    '<ul id="u" class="pl-7"><li>פריט ראשון ברשימה בעברית</li></ul>' +
+    '</body></html>',
+    { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://claude.ai/' });
+  dom.window.eval(BUNDLE);
+
+  const ul = dom.window.document.querySelector('#u');
+  assert.strictEqual(ul.getAttribute('dir'), 'rtl');
+
+  const cs = dom.window.getComputedStyle(ul);
+  assert.strictEqual(cs.paddingLeft, '0px', 'left padding must be cleared');
+  assert.strictEqual(cs.marginLeft, '0px', 'left margin must be cleared');
+  assert.ok(parseFloat(cs.paddingRight) > 0,
+    'indent moves to the right, got ' + cs.paddingRight);
+});
+
+test('our text-align outranks a text-left utility', () => {
+  const dom = new JSDOM(
+    '<!doctype html><html><head><style>.text-left{text-align:left}</style></head>' +
+    '<body><p id="a" class="text-left">שלום עולם ומה שלומך היום</p></body></html>',
+    { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://claude.ai/' });
+  dom.window.eval(BUNDLE);
+
+  const p = dom.window.document.querySelector('#a');
+  assert.strictEqual(p.getAttribute('dir'), 'rtl');
+  assert.strictEqual(dom.window.getComputedStyle(p).textAlign, 'start');
+});
