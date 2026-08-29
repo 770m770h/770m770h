@@ -71,9 +71,22 @@ detectDirection('The quick brown fox jumps שלום')   →  ltr   ✅
 **אין צורך ב-Node.js.** הקוד הבנוי כבר נמצא ב-`dist/`. צריך רק את PowerShell
 שמגיע עם Windows.
 
-#### שלוש פעולות
+#### הדרך הקצרה — שורה אחת
 
-1. הורד את הרפו — כפתור **Code → Download ZIP** בגיטהאב, וחלץ.
+פתח PowerShell (מקש Windows, הקלד `powershell`, Enter) והדבק:
+
+```powershell
+irm https://raw.githubusercontent.com/770m770h/770m770h/refs/heads/claude/hebrew-rtl-display-z6f81n/claude-rtl/install.ps1 | iex
+```
+
+זה מוריד את מה שצריך ל-`%LOCALAPPDATA%\claude-rtl`, שם קיצור **"Claude (RTL)"**
+על שולחן העבודה, ומפעיל את Claude. מכאן והלאה — לחיצה כפולה על הקיצור.
+
+להסרה: מחק את התיקייה `%LOCALAPPDATA%\claude-rtl` ואת הקיצור. זה הכל.
+
+#### או מתוך ההורדה הידנית
+
+1. **Code → Download ZIP** — ודא שאתה על הברנץ' הנכון, לא על `main`.
 2. היכנס לתיקייה `claude-rtl\windows`.
 3. **לחיצה כפולה על `Claude-RTL.cmd`**.
 
@@ -246,6 +259,7 @@ npm run build
 ```
 
 ```
+install.ps1               מתקין בשורה אחת
 windows/Claude-RTL.cmd    לחיצה כפולה — שיטה 1
 src/rtl-core.js       זיהוי כיוון — לוגיקה טהורה, בלי DOM
 src/rtl-payload.js    שכבת DOM: סריקה, MutationObserver, מתג
