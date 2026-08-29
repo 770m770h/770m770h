@@ -62,6 +62,12 @@ detectDirection('The quick brown fox jumps שלום')   →  ltr   ✅
 
 יש שתי דרכים. **התחל מהראשונה.**
 
+> **גרסת Microsoft Store / MSIX:** אם Claude הותקן מחנות Microsoft (הנתיב שלו
+> תחת `C:\Program Files\WindowsApps\Claude_…`), **שיטה 2 לא רלוונטית** — הבינארי
+> חתום עם `OnlyLoadAppFromAsar` דלוק ותיקיית ההתקנה לקריאה בלבד. השתמש בשיטה 1.
+> בגרסה הזאת המשגר סוגר ופותח את Claude פעם אחת כדי לפתוח את פורט הניפוי
+> (הפעלה חמה לא פותחת אותו). `-Diagnose` יזהה ויכתוב את סוג ההתקנה.
+
 ### שיטה 1: משגר (מומלץ) — לא נוגע בשום קובץ
 
 מפעיל את Claude עם פורט הניפוי של Chromium ומזריק את הקוד דרך DevTools Protocol.

@@ -45,7 +45,32 @@ Set-StrictMode -Version 1.0
 
 # --------------------------------------------------------------- discovery
 
+# Claude Desktop now ships as an MSIX / Microsoft Store package. Its executable
+# lives under C:\Program Files\WindowsApps\Claude_<ver>_x64__<hash>\app\Claude.exe
+# — a directory the legacy folder search below never looks in, and whose name
+# carries a version and a hash we cannot guess. Ask the package manager instead.
+function Find-ClaudeExeMsix {
+    try {
+        $pkg = Get-AppxPackage -Name 'Claude' -ErrorAction SilentlyContinue |
+            Where-Object { $_.PackageFamilyName -like 'Claude_*' -and -not $_.IsFramework } |
+            Sort-Object { try { [version]$_.Version } catch { [version]'0.0.0' } } -Descending |
+            Select-Object -First 1
+        if ($pkg -and $pkg.InstallLocation) {
+            foreach ($rel in @('app\Claude.exe', 'Claude.exe')) {
+                $exe = Join-Path $pkg.InstallLocation $rel
+                if (Test-Path $exe) { return $exe }
+            }
+        }
+    } catch { }
+    return $null
+}
+
 function Find-ClaudeExe {
+    # Current distribution first: the Store/MSIX build.
+    $msix = Find-ClaudeExeMsix
+    if ($msix) { return $msix }
+
+    # Legacy Squirrel/NSIS install (%LOCALAPPDATA%\AnthropicClaude\app-x.y.z).
     $bases = @(
         $env:LOCALAPPDATA,
         $env:PROGRAMFILES,
@@ -81,6 +106,23 @@ function Find-ClaudeExe {
     return $null
 }
 
+# Only the Claude *Desktop* processes — never the Claude Code CLI, which is also
+# named claude.exe and would otherwise be killed by a blanket Get-Process. We
+# scope by executable path: the Desktop app runs from its install directory,
+# the CLI runs from %APPDATA%\Claude\claude-code or a VS Code extension folder.
+function Get-ClaudeDesktopProcess {
+    $exe = Find-ClaudeExe
+    $installDir = if ($exe) { Split-Path -Parent $exe } else { $null }
+    return @(Get-Process -Name 'claude' -ErrorAction SilentlyContinue | Where-Object {
+        $p = $null
+        try { $p = $_.Path } catch { $p = $null }
+        if (-not $p) { return $false }
+        if ($installDir -and $p.StartsWith($installDir, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+        # Fallbacks for installs we could not resolve to an exe.
+        return ($p -like '*\WindowsApps\Claude_*\*' -or $p -like '*\AnthropicClaude\*')
+    })
+}
+
 function Get-Payload {
     if ($PayloadPath) {
         if (-not (Test-Path $PayloadPath)) { throw "Payload not found: $PayloadPath" }
@@ -109,8 +151,12 @@ function Get-PageTargets {
     try {
         $all = Invoke-RestMethod -Uri "http://127.0.0.1:$P/json/list" -TimeoutSec 5
     } catch { return @() }
+    # Claude Desktop's content may surface as a 'page' or, depending on the
+    # Electron/BrowserView setup, as a 'webview'. Both expose a websocket URL
+    # and accept injection; other target types (workers, the browser target)
+    # do not carry the DOM we care about.
     return @($all | Where-Object {
-        $_.type -eq 'page' -and $_.webSocketDebuggerUrl
+        ($_.type -eq 'page' -or $_.type -eq 'webview') -and $_.webSocketDebuggerUrl
     })
 }
 
@@ -209,8 +255,15 @@ function Invoke-Diagnose {
     if ($exe) { Write-Host "Claude executable : $exe" -ForegroundColor Green }
     else       { Write-Host "Claude executable : NOT FOUND" -ForegroundColor Red }
 
-    $running = @(Get-Process -Name 'claude' -ErrorAction SilentlyContinue)
-    Write-Host "Running processes : $($running.Count)"
+    $isMsix = $exe -and ($exe -like '*\WindowsApps\Claude_*')
+    Write-Host ("Install type      : " + $(if ($isMsix) { 'Microsoft Store / MSIX' } elseif ($exe) { 'legacy (Squirrel/NSIS)' } else { 'unknown' }))
+    if ($isMsix) {
+        Write-Host "  A Store build only opens the debug port on a cold start, so this" -ForegroundColor DarkGray
+        Write-Host "  launcher must close Claude and reopen it the first time." -ForegroundColor DarkGray
+    }
+
+    $running = Get-ClaudeDesktopProcess
+    Write-Host "Running (Desktop) : $($running.Count)"
 
     $ver = Test-DebugPort -P $Port
     if ($ver) {
@@ -243,14 +296,17 @@ if ($Diagnose)       { Invoke-Diagnose;     return }
 $payload = Get-Payload
 
 if (-not (Test-DebugPort -P $Port)) {
-    $running = @(Get-Process -Name 'claude' -ErrorAction SilentlyContinue)
+    $running = Get-ClaudeDesktopProcess
     if ($running.Count -gt 0) {
-        Write-Host "Claude is already running without the debugging port." -ForegroundColor Yellow
-        $answer = Read-Host "Restart it now? Unsent drafts may be lost. [y/N]"
+        Write-Host "Claude Desktop is already running without the debugging port." -ForegroundColor Yellow
+        Write-Host "It has to be closed and reopened once so the port can be enabled." -ForegroundColor Yellow
+        $answer = Read-Host "Restart Claude now? Unsent drafts may be lost. [y/N]"
         if ($answer -notmatch '^[yY]') {
             Write-Host "Aborted. Close Claude yourself, then run this script again."
             return
         }
+        # Only the Desktop app — Get-ClaudeDesktopProcess never returns the
+        # Claude Code CLI, so a running CLI session is left alone.
         $running | Stop-Process -Force
         Start-Sleep -Seconds 3
     }

@@ -43,9 +43,29 @@ const MARKER = 'claude-rtl-injected-v1';
 
 // ------------------------------------------------------------- locating
 
+// The Store/MSIX build installs to C:\Program Files\WindowsApps\Claude_<ver>__<hash>,
+// a path with an unguessable name that the folder heuristics below never reach.
+// The package manager knows where it is.
+function msixInstallLocation() {
+  if (process.platform !== 'win32') return null;
+  try {
+    const out = execFileSync('powershell', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      "(Get-AppxPackage -Name Claude | " +
+      "Where-Object { $_.PackageFamilyName -like 'Claude_*' -and -not $_.IsFramework } | " +
+      "Sort-Object Version -Descending | Select-Object -First 1).InstallLocation"
+    ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return out && fs.existsSync(out) ? out : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function candidateRoots() {
   const roots = [];
   if (process.platform === 'win32') {
+    const msix = msixInstallLocation();
+    if (msix) roots.push(msix);
     const local = process.env.LOCALAPPDATA;
     if (local) roots.push(path.join(local, 'AnthropicClaude'));
     if (process.env.ProgramFiles) roots.push(path.join(process.env.ProgramFiles, 'Claude'));
@@ -60,14 +80,22 @@ function candidateRoots() {
 
 function findInstall() {
   for (const root of candidateRoots()) {
-    // Windows keeps versioned app-x.y.z directories side by side.
-    const versioned = fs.readdirSync(root, { withFileTypes: true })
-      .filter((e) => e.isDirectory() && /^app-/.test(e.name))
-      .map((e) => path.join(root, e.name))
-      .sort()
-      .reverse();
+    // Windows keeps versioned app-x.y.z directories side by side (legacy build);
+    // the MSIX build nests everything one level down under <root>\app.
+    let versioned = [];
+    try {
+      versioned = fs.readdirSync(root, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && /^app-/.test(e.name))
+        .map((e) => path.join(root, e.name))
+        .sort()
+        .reverse();
+    } catch (e) { /* protected directory — fall back to the fixed candidates */ }
 
-    for (const dir of [...versioned, root]) {
+    const appSub = path.join(root, 'app');
+    const bases = [...versioned, root];
+    if (fs.existsSync(appSub)) bases.push(appSub);
+
+    for (const dir of bases) {
       const resources = fs.existsSync(path.join(dir, 'resources'))
         ? path.join(dir, 'resources')
         : dir;
